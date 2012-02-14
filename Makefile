@@ -9,6 +9,9 @@ BINDIR	= bin
 
 include sources.mk
 
+START_TGT = $(BINDIR)/service
+START_SRC = service.sh
+
 SERVER_TGT = $(BINDIR)/server
 SERVER_OBJS = $(SERVER_SRCS:%.c=%.o)
 SERVER_DEPS = $(SERVER_SRCS:%.c=%.d)
@@ -17,7 +20,7 @@ CLIENT_TGT = $(BINDIR)/client
 CLIENT_OBJS = $(CLIENT_SRCS:%.c=%.o)
 CLIENT_DEPS = $(CLIENT_SRCS:%.c=%.d)
 
-TGTS = $(SERVER_TGT) $(CLIENT_TGT)
+TGTS = $(START_TGT) $(SERVER_TGT) $(CLIENT_TGT)
 SRCS = $(SERVER_SRCS) $(CLIENT_SRCS)
 OBJS = $(SERVER_OBJS) $(CLIENT_OBJS)
 DEPS = $(SERVER_DEPS) $(CLIENT_DEPS)
@@ -27,6 +30,10 @@ LINK	= $(LINK.c) -o $@ $^
 COMP	= $(COMPILE.c) -MMD -MP $<
 
 all: $(TGTS)
+$(START_TGT): $(START_SRC)
+	@mkdir -p $(BINDIR)
+	install -T $< $@
+
 $(SERVER_TGT): $(SERVER_OBJS)
 	@mkdir -p $(BINDIR)
 	$(LINK)
