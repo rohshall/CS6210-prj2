@@ -3,6 +3,7 @@
 CC 	= gcc
 CFLAGS	= -pedantic -Wall -std=gnu99 -pthread -O2 $(DEBUG)
 LDFLAGS = -pthread
+LDLIBS	= -lrt
 DBFLAGS = -g -O0 -DDEBUG
 
 BINDIR	= bin
@@ -26,7 +27,7 @@ OBJS = $(SERVER_OBJS) $(CLIENT_OBJS)
 DEPS = $(SERVER_DEPS) $(CLIENT_DEPS)
 
 # Generic rules:
-LINK	= $(LINK.c) -o $@ $^
+LINK	= $(LINK.c) -o $@ $^ $(LDLIBS)
 COMP	= $(COMPILE.c) -MMD -MP $<
 
 all: $(TGTS)
