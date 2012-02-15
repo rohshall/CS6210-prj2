@@ -1,13 +1,12 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <signal.h>
-#include <string.h>
 
 #include "file_service.h"
 #include "common.h"
 
 /* set to 1 when we must exit */
-sig_atomic_t done = 0;
+volatile sig_atomic_t done = 0;
 
 static void exit_handler(int signo)
 {
@@ -31,8 +30,8 @@ static void pidfile_destroy(char *pidfile_name)
 static void install_sig_handler(int signo, void (*handler)(int))
 {
 	struct sigaction sa;
-	memset(&sa, 0, sizeof(sa));
 	sigemptyset(&sa.sa_mask);
+	sa.flags = 0;
 	sa.sa_handler = handler;
 	if (sigaction(signo, &sa, NULL) == -1)
 		fail_en("sigaction");
