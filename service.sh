@@ -15,15 +15,23 @@ pidfile=$RUNDIR/$daemon_name.pid
 usage="$0 [start | stop]"
 
 start() {
-	echo "starting $0"
-	${RUNDIR}/${server_name} pidfile
+	if [ -f $pidfile ]
+	then
+		echo "Daemon is already running"
+		exit
+	else
+		cmd="${RUNDIR}/${server_name} $pidfile"
+		echo "Running $cmd"
+		$cmd
+	fi
 }
 
 stop() {
 	if [ -f $pidfile ]
 	then
 		local pid=$(cat $pidfile 2> /dev/null)
-		echo "kill $pid"
+		echo "Stopping service"
+		kill $pid
 	else
 		echo "Daemon is not currently running"
 		exit
