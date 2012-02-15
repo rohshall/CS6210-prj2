@@ -1,5 +1,7 @@
 # Add all source files (not headers) here
 
-SERVER_SRCS = server.c
+SERVER_SRCS = server.c \
+	      shm.c
 
-CLIENT_SRCS = client.c
+CLIENT_SRCS = client.c \
+	      shm.c

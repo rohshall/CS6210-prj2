@@ -32,5 +32,9 @@ struct fs_registrar {
  */
 #define shm_ring_buffer_prefix "/fs_ringbuffer"
 
+/* Functions to handle shared memory */
+void *shm_create(char *fname, size_t size);
+void *shm_map(char *fname, size_t size);
+void *shm_destroy(char *fname, void *ptr, size_t size);
 
 #endif /* end of include guard: FILE_SERVICE_H_ */
