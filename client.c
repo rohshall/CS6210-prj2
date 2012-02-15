@@ -1,10 +1,9 @@
 #include <stdio.h>
 
-#include "server.h"
+#include "file_service.h"
 
 int main(int argc, char const *argv[])
 {
 	printf("hello client world\n");
-	printf("Dummy: %d\n", DUMMY_SYMBOL);
 	return 0;
 }

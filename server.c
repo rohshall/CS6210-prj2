@@ -2,8 +2,11 @@
 #include <unistd.h>
 #include <signal.h>
 #include <string.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
-#include "server.h"
+#include "file_service.h"
 #include "common.h"
 
 /* set to 1 when we must exit */
@@ -26,6 +29,42 @@ static void pidfile_create(char *pidfile_name)
 static void pidfile_destroy(char *pidfile_name)
 {
 	remove(pidfile_name);
+}
+
+/* Creates the a shared memory segment of size `size` mapped from file at
+ * `fname`. `shm_flags` contains any extra flags wished to pass into
+ * `shm_open() `*/
+static void *_map_shm(char *fname, size_t size, int shm_flags)
+{
+	mode_t mode = 0666; // read+write for all
+	int flags = O_RDWR | shm_flags;
+	int fd = shm_open(fname, flags, mode);
+	if (fd == -1)
+		fail_en("shm_open");
+
+	if (ftruncate(fd, size) == -1)
+		fail_en("ftruncate");
+
+	int prot = PROT_READ | PROT_WRITE;
+	void *p = mmap(NULL, 0, prot, MAP_SHARED, fd, 0);
+	if (p == (void *) -1)
+		fail_en("mmap");
+	close(fd);
+	return p;
+}
+
+/* Creates the a shared memory segment of size `size` mapped from file at
+ * `fname`. */
+void *create_shm(char *fname, size_t size)
+{
+	/* wrap `_map_shm()`, making sure the segment is created */
+	return _map_shm(fname, size, O_CREAT | O_EXCL);
+}
+
+/* Maps the a shared memory segment of size `size` from file at
+ * `fname`. */
+void *map_shm(char *fname, size_t size) {
+	return _map_shm(fname, size, 0);
 }
 
 static void install_sig_handler(int signo, void (*handler)(int))
@@ -58,6 +97,8 @@ int main(int argc, char *argv[])
 	pidfile_create(pidfile_path);
 
 	install_sig_handler(SIGTERM, &exit_handler);
+
+	struct fs_registrar *reg = map_shm(shm_registrar_name, sizeof(*reg));
 
 	while (!done)
 		sleep(5);
