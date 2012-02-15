@@ -6,7 +6,7 @@
 #include "common.h"
 
 /* set to 1 when we must exit */
-sig_atomic_t done = 0;
+volatile sig_atomic_t done = 0;
 
 static void exit_handler(int signo)
 {
