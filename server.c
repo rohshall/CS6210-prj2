@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <signal.h>
-#include <string.h>
 
 #include "server.h"
 #include "common.h"
@@ -31,8 +30,8 @@ static void pidfile_destroy(char *pidfile_name)
 static void install_sig_handler(int signo, void (*handler)(int))
 {
 	struct sigaction sa;
-	memset(&sa, 0, sizeof(sa));
 	sigemptyset(&sa.sa_mask);
+	sa.flags = 0;
 	sa.sa_handler = handler;
 	if (sigaction(signo, &sa, NULL) == -1)
 		fail_en("sigaction");
