@@ -7,6 +7,8 @@
 #ifndef FILE_SERVICE_H_
 #define FILE_SERVICE_H_
 
+#include <semaphore.h>
+
 /* Name of the shared memory file that clients should `mmap()` to register
  * their pid with the server */
 #define shm_registrar_name "/fs_registrar"
@@ -21,8 +23,10 @@ struct fs_registration {
 /* number of slots in the ringbuffer */
 #define FS_REGISTRAR_SLOT_COUNT 10
 struct fs_registrar {
-	// indices?
-	// locks?
+	sem_t empty;
+	sem_t full;
+	sem_t mtx;
+	int client_index;
 	struct fs_registration registrar[FS_REGISTRAR_SLOT_COUNT];
 };
 
