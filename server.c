@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <errno.h>
+#include <pthread.h>
 
 #include "file_service.h"
 #include "common.h"
@@ -48,37 +49,72 @@ static void daemonize()
 		fail_en("daemon");
 }
 
-void registrar(struct fs_registrar *reg)
+/* Handles a single ring buffer request/repsonse sequence. Currently specific
+ * to registration ring buffers */
+static void rb_handle_request(int slot_index, struct fs_registration *slot)
 {
-  sem_init(&(reg->empty), 1, FS_REGISTRAR_SLOT_COUNT);
-  sem_init(&(reg->full), 1, 0);
-  sem_init(&(reg->mtx), 1, 1);
-  reg->client_index = 0;
+	pthread_mutex_lock(&slot->mutex);
 
-  int server_index = 0;
-  while(!done){
+	// pull_request();
+	int pid = slot->client_pid;
 
-    int pid = 0;
-    
-    if (sem_wait(&(reg->full)) == -1) {
-	int en = errno;
-	if (en == EINTR)
-	  continue;
-      }
-    sem_wait(&(reg->mtx));
+	// process_request();
+	printf("server %d client %d", slot_index, pid);
 
-    pid = reg->registrar[server_index].client_pid;
-    
-    sem_post(&(reg->mtx));
-    sem_post(&(reg->empty));
+	// push_response();
+	slot->client_pid *= -1;
 
-    //process pid;
-    printf("server %d client %d", server_index, pid);
-    
-    kill(pid, SIGUSR1);
+	slot->done = 1;
+	pthread_cond_signal(&slot->condvar);
+	while (slot->done)
+		pthread_cond_wait(&slot->condvar, &slot->mutex);
+	pthread_mutex_unlock(&slot->mutex);
+}
 
-    server_index++;
-  }
+/* Initializes a ring buffer. Currently specific to registration ring buffers */
+static void rb_init(struct fs_registrar *reg)
+{
+	sem_init(&(reg->empty), 1, FS_REGISTRAR_SLOT_COUNT);
+	sem_init(&(reg->full), 1, 0);
+	sem_init(&(reg->mtx), 1, 1);
+	reg->client_index = 0;
+
+	pthread_mutexattr_t m_attr;
+	pthread_mutexattr_init(&m_attr);
+	pthread_mutexattr_setpshared(&m_attr, PTHREAD_PROCESS_SHARED);
+	pthread_condattr_t c_attr;
+	pthread_condattr_init(&c_attr);
+	pthread_condattr_setpshared(&c_attr, PTHREAD_PROCESS_SHARED);
+	struct fs_registration *slot;
+	for (int i = 0; i < FS_REGISTRAR_SLOT_COUNT; ++i) {
+		slot = &reg->registrar[i];
+		pthread_mutex_init(&slot->mutex, &m_attr);
+		pthread_cond_init(&slot->condvar, &c_attr);
+		slot->done = 0;
+	}
+}
+
+static void start_registrar()
+{
+	struct fs_registrar *reg = shm_create(shm_registrar_name, sizeof(*reg));
+	rb_init(reg);
+
+	struct fs_registration *slot;
+	int server_index = 0;
+	while (!done) {
+		if (sem_wait(&(reg->full)) == -1) {
+			int en = errno;
+			if (en == EINTR)
+				continue;
+		}
+
+		slot = &reg->registrar[server_index];
+		rb_handle_request(server_index, slot);
+
+		sem_post(&(reg->empty));
+		server_index++;
+	}
+	shm_destroy(shm_registrar_name, reg, sizeof(*reg));
 }
 
 int main(int argc, char *argv[])
@@ -92,16 +128,8 @@ int main(int argc, char *argv[])
 
 	install_sig_handler(SIGTERM, &exit_handler);
 
-	struct fs_registrar *reg = shm_create(shm_registrar_name,
-					      sizeof(*reg));
+	start_registrar();
 
-	registrar(reg);
-
-		//while (!done)
-		//sleep(5);
-	
-	printf("wakeup");
-	shm_destroy(shm_registrar_name, reg, sizeof(*reg));
 	pidfile_destroy(pidfile_path);
 	return 0;
 }

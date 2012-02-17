@@ -15,13 +15,16 @@
 
 /* structs used in the registrar shared memory */
 struct fs_registration {
-	// mutexes? cond vars? semaphores?
-	// valid bits?
+	pthread_mutex_t mutex;
+	pthread_cond_t condvar;
+	int done;
 	int client_pid;
 };
 
 /* number of slots in the ringbuffer */
 #define FS_REGISTRAR_SLOT_COUNT 10
+
+/* The shaerd ring buffer itself */
 struct fs_registrar {
 	sem_t empty;
 	sem_t full;
