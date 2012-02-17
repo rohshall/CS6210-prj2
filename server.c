@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <signal.h>
+#include <errno.h>
 
 #include "file_service.h"
 #include "common.h"
@@ -55,11 +56,15 @@ void registrar(struct fs_registrar *reg)
   reg->client_index = 0;
 
   int server_index = 0;
-  while(server_index < 10){
+  while(!done){
 
     int pid = 0;
     
-    sem_wait(&(reg->full));
+    if (sem_wait(&(reg->full)) == -1) {
+	int en = errno;
+	if (en == EINTR)
+	  continue;
+      }
     sem_wait(&(reg->mtx));
 
     pid = reg->registrar[server_index].client_pid;
@@ -92,10 +97,10 @@ int main(int argc, char *argv[])
 
 	registrar(reg);
 
-	while (!done)
-		sleep(5);
+		//while (!done)
+		//sleep(5);
 	
-
+	printf("wakeup");
 	shm_destroy(shm_registrar_name, reg, sizeof(*reg));
 	pidfile_destroy(pidfile_path);
 	return 0;
