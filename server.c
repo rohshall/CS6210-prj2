@@ -51,18 +51,20 @@ static void daemonize()
 
 /* Handles a single ring buffer request/repsonse sequence. Currently specific
  * to registration ring buffers */
-static void rb_handle_request(int slot_index, struct fs_registration *slot)
+static void rb_handle_request(int slot_index,
+			      struct fs_registrar_sring_slot *slot)
 {
 	pthread_mutex_lock(&slot->mutex);
 
 	// pull_request();
-	int pid = slot->client_pid;
+	fs_registrar_req_t client_pid = slot->entry.req;
 
 	// process_request();
-	printf("server %d client %d\n", slot_index, pid);
+	printf("server %d client %d\n", slot_index, client_pid);
 
 	// push_response();
-	slot->client_pid *= -1;
+	slot->entry.rsp.start = -1 * client_pid;
+	slot->entry.rsp.end =  client_pid;
 
 	slot->done = 1;
 	pthread_cond_signal(&slot->condvar);
@@ -72,9 +74,11 @@ static void rb_handle_request(int slot_index, struct fs_registration *slot)
 }
 
 /* Initializes a ring buffer. Currently specific to registration ring buffers */
-static void rb_init(struct fs_registrar *reg)
+static void rb_init(struct fs_registrar_sring *reg)
 {
-	sem_init(&(reg->empty), 1, FS_REGISTRAR_SLOT_COUNT);
+	reg->slot_count = FS_REGISTRAR_SLOT_COUNT;
+
+	sem_init(&(reg->empty), 1, reg->slot_count);
 	sem_init(&(reg->full), 1, 0);
 	sem_init(&(reg->mtx), 1, 1);
 	reg->client_index = 0;
@@ -85,9 +89,9 @@ static void rb_init(struct fs_registrar *reg)
 	pthread_condattr_t c_attr;
 	pthread_condattr_init(&c_attr);
 	pthread_condattr_setpshared(&c_attr, PTHREAD_PROCESS_SHARED);
-	struct fs_registration *slot;
-	for (int i = 0; i < FS_REGISTRAR_SLOT_COUNT; ++i) {
-		slot = &reg->registrar[i];
+	struct fs_registrar_sring_slot *slot;
+	for (int i = 0; i < reg->slot_count; ++i) {
+		slot = &reg->ring[i];
 		pthread_mutex_init(&slot->mutex, &m_attr);
 		pthread_cond_init(&slot->condvar, &c_attr);
 		slot->done = 0;
@@ -96,10 +100,11 @@ static void rb_init(struct fs_registrar *reg)
 
 static void start_registrar()
 {
-	struct fs_registrar *reg = shm_create(shm_registrar_name, sizeof(*reg));
+	struct fs_registrar_sring *reg = shm_create(shm_registrar_name,
+						    sizeof(*reg));
 	rb_init(reg);
 
-	struct fs_registration *slot;
+	struct fs_registrar_sring_slot *slot;
 	int server_index = 0;
 	while (!done) {
 		if (sem_wait(&(reg->full)) == -1) {
@@ -108,11 +113,11 @@ static void start_registrar()
 				continue;
 		}
 
-		slot = &reg->registrar[server_index];
+		slot = &reg->ring[server_index];
 		rb_handle_request(server_index, slot);
 
 		sem_post(&(reg->empty));
-		server_index = (server_index + 1) % FS_REGISTRAR_SLOT_COUNT;
+		server_index = (server_index + 1) % reg->slot_count;
 	}
 	shm_destroy(shm_registrar_name, reg, sizeof(*reg));
 }

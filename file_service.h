@@ -8,30 +8,27 @@
 #define FILE_SERVICE_H_
 
 #include <semaphore.h>
+#include "ring.h"
 
 /* Name of the shared memory file that clients should `mmap()` to register
  * their pid with the server */
 #define shm_registrar_name "/fs_registrar"
 
-/* structs used in the registrar shared memory */
-struct fs_registration {
-	pthread_mutex_t mutex;
-	pthread_cond_t condvar;
-	int done;
-	int client_pid;
-};
+/* types for the request/response for the registration buffer */
+typedef int client_pid_t;
+
+typedef struct sector_limits {
+	int start;
+	int end;
+} sector_limits_t;
 
 /* number of slots in the ringbuffer */
 #define FS_REGISTRAR_SLOT_COUNT 10
 
-/* The shaerd ring buffer itself */
-struct fs_registrar {
-	sem_t empty;
-	sem_t full;
-	sem_t mtx;
-	int client_index;
-	struct fs_registration registrar[FS_REGISTRAR_SLOT_COUNT];
-};
+/* defines the request/response union, the entry slot struct, and the ringbuffer
+ * struct */
+DEFINE_RING_TYPES(fs_registrar, client_pid_t, sector_limits_t,
+		  FS_REGISTRAR_SLOT_COUNT);
 
 /* Prefix of the name of the shared memory file that clients should `mmap()` to
  * communicate via ring buffer. The full name will be
