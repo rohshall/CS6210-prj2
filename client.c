@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <signal.h>
+#include <pthread.h>
 
 #include "file_service.h"
 
@@ -28,7 +29,8 @@ static void register_with_server()
 	sem_wait(&(reg->mtx));
 
 	struct fs_registration *slot = &reg->registrar[reg->client_index];
-	slot->client_pid = getpid();
+	int request = getpid();
+	slot->client_pid = request;
 	slot->done = 0;
 	reg->client_index++;
 
@@ -38,11 +40,14 @@ static void register_with_server()
 	pthread_mutex_lock(&slot->mutex);
 	while(!slot->done)
 		pthread_cond_wait(&slot->condvar, &slot->mutex);
+	int response = slot->client_pid;
 	slot->done = 0;
 	pthread_cond_signal(&slot->condvar);
 	pthread_mutex_unlock(&slot->mutex);
 
 	shm_destroy(shm_registrar_name, reg, sizeof(*reg));
+
+	printf("Client: requested %d, recieved %d\n", request, response);
 }
 
 int main(int argc, char const *argv[])
