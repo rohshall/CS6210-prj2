@@ -27,14 +27,22 @@ static void register_with_server()
 	sem_wait(&(reg->empty));
 	sem_wait(&(reg->mtx));
 
-	reg->registrar[reg->client_index].client_pid = getpid();
+	struct fs_registration *slot = reg->registrar[reg->client_index];
+	slot->client_pid = getpid();
+	slot->done = 0;
 	reg->client_index++;
 
 	sem_post(&(reg->mtx));
 	sem_post(&(reg->full));
 
-	while(!ready)
-		sleep(1);
+	pthread_mutex_lock(&slot->mutex);
+	while(!slot->done)
+		pthread_cond_wait(&slot->condvar, &slot->mutex);
+	slot->done = 0;
+	pthread_cond_signal(&slot->condvar);
+	pthread_mutex_unlock(&slot->mutex);
+
+	shm_destroy(shm_registrar_name, sizeof(*reg));
 }
 
 int main(int argc, char const *argv[])
