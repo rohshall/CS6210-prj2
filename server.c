@@ -59,7 +59,7 @@ static void rb_handle_request(int slot_index, struct fs_registration *slot)
 	int pid = slot->client_pid;
 
 	// process_request();
-	printf("server %d client %d", slot_index, pid);
+	printf("server %d client %d\n", slot_index, pid);
 
 	// push_response();
 	slot->client_pid *= -1;
