@@ -33,7 +33,7 @@ static void register_with_server()
 	int request = getpid();
 	slot->client_pid = request;
 	slot->done = 0;
-	reg->client_index++;
+	reg->client_index = (reg->client_index + 1) % FS_REGISTRAR_SLOT_COUNT;
 
 	sem_post(&(reg->mtx));
 	sem_post(&(reg->full));

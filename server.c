@@ -112,7 +112,7 @@ static void start_registrar()
 		rb_handle_request(server_index, slot);
 
 		sem_post(&(reg->empty));
-		server_index++;
+		server_index = (server_index + 1) % FS_REGISTRAR_SLOT_COUNT;
 	}
 	shm_destroy(shm_registrar_name, reg, sizeof(*reg));
 }
