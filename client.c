@@ -46,7 +46,7 @@ static void register_with_server()
 	pthread_cond_signal(&slot->condvar);
 	pthread_mutex_unlock(&slot->mutex);
 
-	shm_destroy(shm_registrar_name, reg, sizeof(*reg));
+	shm_unmap(reg, sizeof(*reg));
 
 	printf("Client: requested %d, recieved %d\n", request, response);
 }

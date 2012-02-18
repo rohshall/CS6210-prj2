@@ -47,12 +47,17 @@ void *shm_map(char *fname, size_t size)
 	return _shm_create_and_map(fname, size, 0);
 }
 
-/* munmaps the shared memory */
-void shm_destroy(char *fname, void *p, size_t size)
+/* Unmaps the shared memory. Does not delete the underlying segment */
+void shm_unmap(void *p, size_t size)
 {
 	if (munmap(p, size) == -1)
 		fail_en("munmap");
+}
 
+/* munmaps and unlinks the shared memory */
+void shm_destroy(char *fname, void *p, size_t size)
+{
+	shm_unmap(p, size);
 	if (shm_unlink(fname) == -1)
 		fail_en("shm_unlink");
 }
