@@ -27,7 +27,7 @@ static void register_with_server()
 	sem_wait(&(reg->empty));
 	sem_wait(&(reg->mtx));
 
-	struct fs_registration *slot = reg->registrar[reg->client_index];
+	struct fs_registration *slot = &reg->registrar[reg->client_index];
 	slot->client_pid = getpid();
 	slot->done = 0;
 	reg->client_index++;
@@ -42,7 +42,7 @@ static void register_with_server()
 	pthread_cond_signal(&slot->condvar);
 	pthread_mutex_unlock(&slot->mutex);
 
-	shm_destroy(shm_registrar_name, sizeof(*reg));
+	shm_destroy(shm_registrar_name, reg, sizeof(*reg));
 }
 
 int main(int argc, char const *argv[])
