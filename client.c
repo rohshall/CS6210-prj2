@@ -31,7 +31,7 @@ static void register_with_server()
 
 	struct fs_registration *slot = &reg->registrar[reg->client_index];
 	int request = getpid();
-	slot->client_pid = request;
+	slot->req_resp.client_pid = request;
 	slot->done = 0;
 	reg->client_index = (reg->client_index + 1) % FS_REGISTRAR_SLOT_COUNT;
 
@@ -41,14 +41,16 @@ static void register_with_server()
 	pthread_mutex_lock(&slot->mutex);
 	while(!slot->done)
 		pthread_cond_wait(&slot->condvar, &slot->mutex);
-	int response = slot->client_pid;
+	int sector_start = slot->req_resp.sector_limits[0];
+	int sector_end = slot->req_resp.sector_limits[1];
 	slot->done = 0;
 	pthread_cond_signal(&slot->condvar);
 	pthread_mutex_unlock(&slot->mutex);
 
 	shm_unmap(reg, sizeof(*reg));
 
-	printf("Client: requested %d, recieved %d\n", request, response);
+	printf("Client: requested %d, recieved (%d, %d)\n", request,
+	       sector_start, sector_end);
 }
 
 int main(int argc, char const *argv[])

@@ -56,13 +56,14 @@ static void rb_handle_request(int slot_index, struct fs_registration *slot)
 	pthread_mutex_lock(&slot->mutex);
 
 	// pull_request();
-	int pid = slot->client_pid;
+	int client_pid = slot->req_resp.client_pid;
 
 	// process_request();
-	printf("server %d client %d\n", slot_index, pid);
+	printf("server %d client %d\n", slot_index, client_pid);
 
 	// push_response();
-	slot->client_pid *= -1;
+	slot->req_resp.sector_limits[0] = -1 * client_pid;
+	slot->req_resp.sector_limits[1] =  client_pid;
 
 	slot->done = 1;
 	pthread_cond_signal(&slot->condvar);

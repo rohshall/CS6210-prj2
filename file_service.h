@@ -18,7 +18,10 @@ struct fs_registration {
 	pthread_mutex_t mutex;
 	pthread_cond_t condvar;
 	int done;
-	int client_pid;
+	union {
+		int client_pid;
+		int sector_limits[2];
+	} req_resp;
 };
 
 /* number of slots in the ringbuffer */
