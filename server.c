@@ -49,6 +49,9 @@ static void daemonize()
 		fail_en("daemon");
 }
 
+/* Handles a single request/response for client registration. Takes in the
+ * client pid in entry->req, and pushes the sector limits for the served file in
+ * entry->rsp. */
 static void reg_handle_request(union fs_registrar_sring_entry *entry)
 {
 	// process_request
@@ -60,6 +63,7 @@ static void reg_handle_request(union fs_registrar_sring_entry *entry)
 	entry->rsp.end =  client_pid;
 }
 
+/* starts the infinite loop for the client registrar */
 static void start_registrar()
 {
 	struct fs_registrar_sring *reg = shm_create(shm_registrar_name,

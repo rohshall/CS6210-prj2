@@ -10,7 +10,7 @@
 #include <semaphore.h>
 #include "ring.h"
 
-/* Name of the shared memory file that clients should `mmap()` to register
+/* Name of the shared memory file that clients should `shm_map()` to register
  * their pid with the server */
 #define shm_registrar_name "/fs_registrar"
 

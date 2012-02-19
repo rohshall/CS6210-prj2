@@ -6,6 +6,9 @@
 
 #include "file_service.h"
 
+/* Registers this client with the file server. On return, the server will have
+ * created a ring buffer for us to use, and we will know the sector limits for
+ * the served file. */
 static void register_with_server()
 {
 	struct fs_registrar_sring *reg = shm_map(shm_registrar_name, sizeof(*reg));
