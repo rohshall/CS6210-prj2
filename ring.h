@@ -2,8 +2,6 @@
 #ifndef RING_H_
 #define RING_H_
 
-
-
 /* Defines the types for the ring buffer */
 #define DEFINE_RING_TYPES(_tag, __req_t, __rsp_t, _slot_count)		\
 typedef __req_t _tag##_req_t;						\
@@ -28,7 +26,6 @@ struct _tag##_sring {							\
 	int slot_count;							\
 	struct _tag##_sring_slot ring[_slot_count];			\
 }
-
 
 /* Initialize a given ring. `_tag` is the tag used to create the data types,
  * `_ring` is a pointer to the shared memory (assumed already created), and
@@ -80,11 +77,16 @@ struct _tag##_sring {							\
 	pthread_mutex_unlock(&slot->mutex);				\
 } while (0)
 
-/* Server, infinite loop */
-#define RB_SERVE(_tag, _ring, _handler) do {				\
+/* Server infinite loop. `_tag` is the tag used to create the data structures,
+ * and `_ring` is a pointer to a shared memory ring (already created and
+ * initialized). `_stop_cond` is an expression which, when it evaluates to True,
+ * breaks the loop. `_handler` is a pointer to a function that takes in a
+ * pointer to a union sring_entry, reads the request in the union, and returns
+ * its response in the same union */
+#define RB_SERVE(_tag, _ring, _stop_cond, _handler) do {		\
 	struct _tag##_sring_slot *slot;					\
 	int server_index = 0;						\
-	while (!done) {							\
+	while (!(_stop_cond)) {						\
 		if (sem_wait(&(_ring)->full) == -1) {			\
 			int en = errno;					\
 			if (en == EINTR)				\
@@ -92,7 +94,13 @@ struct _tag##_sring {							\
 		}							\
 									\
 		slot = &(_ring)->ring[server_index];			\
-		(_handler)(slot, &reg_handle_request);			\
+		pthread_mutex_lock(&slot->mutex);			\
+		(_handler)(&slot->entry);				\
+		slot->done = 1;						\
+		pthread_cond_signal(&slot->condvar);			\
+		while (slot->done)					\
+			pthread_cond_wait(&slot->condvar, &slot->mutex);\
+		pthread_mutex_unlock(&slot->mutex);			\
 									\
 		sem_post(&(_ring)->empty);				\
 		server_index = (server_index + 1) % (_ring)->slot_count;\

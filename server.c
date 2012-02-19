@@ -51,31 +51,13 @@ static void daemonize()
 
 static void reg_handle_request(union fs_registrar_sring_entry *entry)
 {
-	// process_request();
+	// process_request
 	int client_pid = entry->req;
 	printf("server: client request %d\n", client_pid);
 
-	// push_response();
+	// push_response
 	entry->rsp.start = -1 * client_pid;
 	entry->rsp.end =  client_pid;
-
-}
-
-/* Handles a single ring buffer request/repsonse sequence. Currently specific
- * to registration ring buffers */
-static void
-rb_handle_request(struct fs_registrar_sring_slot *slot,
-		  void (*request_handler)(union fs_registrar_sring_entry *))
-{
-	pthread_mutex_lock(&slot->mutex);
-
-	request_handler(&slot->entry);
-
-	slot->done = 1;
-	pthread_cond_signal(&slot->condvar);
-	while (slot->done)
-		pthread_cond_wait(&slot->condvar, &slot->mutex);
-	pthread_mutex_unlock(&slot->mutex);
 }
 
 static void start_registrar()
@@ -83,7 +65,7 @@ static void start_registrar()
 	struct fs_registrar_sring *reg = shm_create(shm_registrar_name,
 						    sizeof(*reg));
 	RB_INIT(fs_registrar, reg, FS_REGISTRAR_SLOT_COUNT);
-	RB_SERVE(fs_registrar, reg, &rb_handle_request);
+	RB_SERVE(fs_registrar, reg, done, &reg_handle_request);
 	shm_destroy(shm_registrar_name, reg, sizeof(*reg));
 }
 
