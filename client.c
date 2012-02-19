@@ -12,7 +12,7 @@ static void register_with_server()
 	int req = getpid();
 	struct sector_limits rsp;
 
-	MAKE_REQUEST(fs_registrar, reg, &req, &rsp);
+	RB_MAKE_REQUEST(fs_registrar, reg, &req, &rsp);
 
 	printf("Client: requested %d, recieved (%d, %d)\n", req,
 	       rsp.start, rsp.end);

@@ -73,36 +73,11 @@ static void rb_handle_request(int slot_index,
 	pthread_mutex_unlock(&slot->mutex);
 }
 
-/* Initializes a ring buffer. Currently specific to registration ring buffers */
-static void rb_init(struct fs_registrar_sring *reg)
-{
-	reg->slot_count = FS_REGISTRAR_SLOT_COUNT;
-
-	sem_init(&(reg->empty), 1, reg->slot_count);
-	sem_init(&(reg->full), 1, 0);
-	sem_init(&(reg->mtx), 1, 1);
-	reg->client_index = 0;
-
-	pthread_mutexattr_t m_attr;
-	pthread_mutexattr_init(&m_attr);
-	pthread_mutexattr_setpshared(&m_attr, PTHREAD_PROCESS_SHARED);
-	pthread_condattr_t c_attr;
-	pthread_condattr_init(&c_attr);
-	pthread_condattr_setpshared(&c_attr, PTHREAD_PROCESS_SHARED);
-	struct fs_registrar_sring_slot *slot;
-	for (int i = 0; i < reg->slot_count; ++i) {
-		slot = &reg->ring[i];
-		pthread_mutex_init(&slot->mutex, &m_attr);
-		pthread_cond_init(&slot->condvar, &c_attr);
-		slot->done = 0;
-	}
-}
-
 static void start_registrar()
 {
 	struct fs_registrar_sring *reg = shm_create(shm_registrar_name,
 						    sizeof(*reg));
-	rb_init(reg);
+	RB_INIT(fs_registrar, reg, FS_REGISTRAR_SLOT_COUNT);
 
 	struct fs_registrar_sring_slot *slot;
 	int server_index = 0;
