@@ -49,22 +49,27 @@ static void daemonize()
 		fail_en("daemon");
 }
 
+static void reg_handle_request(union fs_registrar_sring_entry *entry)
+{
+	// process_request();
+	int client_pid = entry->req;
+	printf("server: client request %d\n", client_pid);
+
+	// push_response();
+	entry->rsp.start = -1 * client_pid;
+	entry->rsp.end =  client_pid;
+
+}
+
 /* Handles a single ring buffer request/repsonse sequence. Currently specific
  * to registration ring buffers */
-static void rb_handle_request(int slot_index,
-			      struct fs_registrar_sring_slot *slot)
+static void
+rb_handle_request(struct fs_registrar_sring_slot *slot,
+		  void (*request_handler)(union fs_registrar_sring_entry *))
 {
 	pthread_mutex_lock(&slot->mutex);
 
-	// pull_request();
-	fs_registrar_req_t client_pid = slot->entry.req;
-
-	// process_request();
-	printf("server %d client %d\n", slot_index, client_pid);
-
-	// push_response();
-	slot->entry.rsp.start = -1 * client_pid;
-	slot->entry.rsp.end =  client_pid;
+	request_handler(&slot->entry);
 
 	slot->done = 1;
 	pthread_cond_signal(&slot->condvar);
@@ -89,7 +94,7 @@ static void start_registrar()
 		}
 
 		slot = &reg->ring[server_index];
-		rb_handle_request(server_index, slot);
+		rb_handle_request(slot, &reg_handle_request);
 
 		sem_post(&(reg->empty));
 		server_index = (server_index + 1) % reg->slot_count;
