@@ -80,4 +80,23 @@ struct _tag##_sring {							\
 	pthread_mutex_unlock(&slot->mutex);				\
 } while (0)
 
+/* Server, infinite loop */
+#define RB_SERVE(_tag, _ring, _handler) do {				\
+	struct _tag##_sring_slot *slot;					\
+	int server_index = 0;						\
+	while (!done) {							\
+		if (sem_wait(&(_ring)->full) == -1) {			\
+			int en = errno;					\
+			if (en == EINTR)				\
+				continue;				\
+		}							\
+									\
+		slot = &(_ring)->ring[server_index];			\
+		(_handler)(slot, &reg_handle_request);			\
+									\
+		sem_post(&(_ring)->empty);				\
+		server_index = (server_index + 1) % (_ring)->slot_count;\
+	}								\
+} while (0)
+
 #endif /* end of include guard: RING_H_ */

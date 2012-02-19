@@ -83,22 +83,7 @@ static void start_registrar()
 	struct fs_registrar_sring *reg = shm_create(shm_registrar_name,
 						    sizeof(*reg));
 	RB_INIT(fs_registrar, reg, FS_REGISTRAR_SLOT_COUNT);
-
-	struct fs_registrar_sring_slot *slot;
-	int server_index = 0;
-	while (!done) {
-		if (sem_wait(&(reg->full)) == -1) {
-			int en = errno;
-			if (en == EINTR)
-				continue;
-		}
-
-		slot = &reg->ring[server_index];
-		rb_handle_request(slot, &reg_handle_request);
-
-		sem_post(&(reg->empty));
-		server_index = (server_index + 1) % reg->slot_count;
-	}
+	RB_SERVE(fs_registrar, reg, &rb_handle_request);
 	shm_destroy(shm_registrar_name, reg, sizeof(*reg));
 }
 
