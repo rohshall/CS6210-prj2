@@ -9,7 +9,7 @@
 /* Registers this client with the file server. On return, the server will have
  * created a ring buffer for us to use, and we will know the sector limits for
  * the served file. */
-static void register_with_server()
+static struct sector_limits register_with_server()
 {
 	struct fs_registrar_sring *reg = shm_map(shm_registrar_name, sizeof(*reg));
 	int req = getpid();
@@ -20,9 +20,11 @@ static void register_with_server()
 	printf("Client Reg: requested %d, recieved (%d, %d)\n", req,
 	       rsp.start, rsp.end);
 	shm_unmap(reg, sizeof(*reg));
+
+	return rsp;
 }
 
-void request_data(int start, int end)
+void request_data(struct sector_limits sector)
 {
 
         char shmWorkerName[50];
@@ -30,7 +32,7 @@ void request_data(int start, int end)
 
 	struct fs_registrar_sring *ring = shm_map(shmWorkerName, sizeof(*ring));
 
-	int req = rand();
+	int req = rand() % (sector.end-sector.start) + sector.start;
 
 	struct sector_data rsp;
 
@@ -44,9 +46,9 @@ void request_data(int start, int end)
 
 int main(int argc, char const *argv[])
 {
-	register_with_server();
+	struct sector_limits rsp = register_with_server();
 	printf("done reg\n");
-	request_data(1, 2);
+	request_data(rsp);
 
 	//printf("hello client world\n");
 	return 0;
