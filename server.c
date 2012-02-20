@@ -2,7 +2,6 @@
 #include <unistd.h>
 #include <signal.h>
 #include <errno.h>
-#include <pthread.h>
 
 #include "file_service.h"
 #include "common.h"
@@ -49,6 +48,32 @@ static void daemonize()
 		fail_en("daemon");
 }
 
+static void data_lookup_handle(union fs_process_sring_entry *entry)
+{
+        int sector = entry->req;
+
+	//char *rsp;
+	sprintf(entry->rsp.data, "test");
+	
+	//entry->rsp.data = rsp;
+
+}
+
+static void *start_worker(void* rname)
+{
+        struct ring_name *rData = (struct ring_name*)rname;
+        struct fs_process_sring *reg = rData->ring;
+	char* shmWorkerName = rData->shm_name;
+        
+	printf("worker thread\n");
+	
+	RB_SERVE(fs_process, reg, done, &data_lookup_handle);
+
+	shm_destroy(shmWorkerName, reg, sizeof(*reg));
+	
+	return 0;
+}
+
 /* Handles a single request/response for client registration. Takes in the
  * client pid in entry->req, and pushes the sector limits for the served file in
  * entry->rsp. */
@@ -58,9 +83,28 @@ static void reg_handle_request(union fs_registrar_sring_entry *entry)
 	int client_pid = entry->req;
 	printf("server: client request %d\n", client_pid);
 
+	//create new ring
+	char shmWorkerName[50];
+	sprintf(shmWorkerName, "%s.%d", shm_registrar_name, client_pid);
+
+	struct fs_process_sring *reg = shm_create(shmWorkerName, sizeof(*reg));
+
+	RB_INIT(fs_process, reg, FS_PROCESS_SLOT_COUNT);
+
+	struct ring_name rname;
+	rname.ring = (void*)reg;
+	rname.shm_name = &shmWorkerName;
+
+	//spawn new worker thread)
+	pthread_t newThread;
+	pthread_create(&newThread, NULL, start_worker, &rname);
+	
+	printf("thread created. worker shm %s\n", shmWorkerName);
+
 	// push_response
 	entry->rsp.start = -1 * client_pid;
 	entry->rsp.end =  client_pid;
+
 }
 
 /* starts the infinite loop for the client registrar */

@@ -14,6 +14,9 @@
  * their pid with the server */
 #define shm_registrar_name "/fs_registrar"
 
+/* Sector size to be read */
+#define SECTOR_SIZE 512
+
 /* types for the request/response for the registration buffer */
 typedef int client_pid_t;
 
@@ -22,13 +25,28 @@ typedef struct sector_limits {
 	int end;
 } sector_limits_t;
 
+typedef int sector_number;
+
+typedef struct sector_data{
+	char data[SECTOR_SIZE];
+} sector_data_t;
+
+/* ring ptr and shm_name pair for server worker threads*/
+struct ring_name {
+        void* ring;
+        char* shm_name;
+}ring_name_t;
+
 /* number of slots in the ringbuffer */
 #define FS_REGISTRAR_SLOT_COUNT 10
+#define FS_PROCESS_SLOT_COUNT 10
 
 /* defines the request/response union, the entry slot struct, and the ringbuffer
  * struct */
 DEFINE_RING_TYPES(fs_registrar, client_pid_t, sector_limits_t,
 		  FS_REGISTRAR_SLOT_COUNT);
+DEFINE_RING_TYPES(fs_process, sector_number, sector_data_t,
+	          FS_PROCESS_SLOT_COUNT);
 
 /* Prefix of the name of the shared memory file that clients should `mmap()` to
  * communicate via ring buffer. The full name will be
