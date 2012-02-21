@@ -5,10 +5,10 @@
 
 #include "file_service.h"
 #include "common.h"
-#include "linked_list.h"
+#include "stlist.h"
 
 /* global circular linked list */
-struct server_list server_list;
+struct stlist server_list;
 
 /* set to 1 when we must exit */
 volatile sig_atomic_t done = 0;
@@ -97,9 +97,9 @@ static void reg_handle_request(union fs_registrar_sring_entry *entry)
 	rname.shm_name = shmWorkerName;
 
 	//create new linked list node
-	struct server_list_node *n = server_list_node_create();
+	struct stlist_node *n = stlist_node_create();
 	n->sem = &reg->full;
-	server_list_insert(&server_list, n);
+	stlist_insert(&server_list, n);
 
 	//spawn new worker thread)
 	pthread_create(&n->tid, NULL, start_worker, &rname);
@@ -115,7 +115,7 @@ static void reg_handle_request(union fs_registrar_sring_entry *entry)
 static void start_registrar()
 {
 	/* Create the internal circular linked list for worker threads */
-	server_threads_list_init(&server_list);
+	stlist_init(&server_list);
 
 	/* Create the registration ring buffer for clients */
 	struct fs_registrar_sring *reg = shm_create(shm_registrar_name,

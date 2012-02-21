@@ -2,7 +2,7 @@
 
 SERVER_SRCS = server.c \
 	      shm.c \
-	      linked_list.c
+	      stlist.c
 
 CLIENT_SRCS = client.c \
 	      shm.c

@@ -5,11 +5,11 @@
 #include <pthread.h>
 #include <semaphore.h>
 
-#include "linked_list.h"
+#include "stlist.h"
 #include "common.h"
 #include "file_service.h"
 
-void server_threads_list_init(struct server_list *list)
+void stlist_init(struct stlist *list)
 {
 	list->first = NULL;
 	list->last = NULL;
@@ -18,16 +18,16 @@ void server_threads_list_init(struct server_list *list)
 }
 
 /* Alloc's, initializes and returns a new server_list_node */
-struct server_list_node *server_list_node_create()
+struct stlist_node *stlist_node_create()
 {
-	struct server_list_node *n = ecalloc(sizeof(*n));
+	struct stlist_node *n = ecalloc(sizeof(*n));
 	pthread_mutex_init(&n->mtx, NULL);
 	pthread_cond_init(&n->cond, NULL);
 	return n;
 }
 
 /* Destroy's a server_list_node */
-void server_list_node_destroy(struct server_list_node *n)
+void stlist_node_destroy(struct stlist_node *n)
 {
 	pthread_mutex_destroy(&n->mtx);
 	pthread_cond_destroy(&n->cond);
@@ -35,7 +35,7 @@ void server_list_node_destroy(struct server_list_node *n)
 }
 
 /* Insert a node into the list. Assumes a NULL list->first is an empty list */
-void server_list_insert(struct server_list *list, struct server_list_node *n)
+void stlist_insert(struct stlist *list, struct stlist_node *n)
 {
 	sem_wait(&list->mtx);
 	if (!list->first) {

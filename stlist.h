@@ -1,9 +1,10 @@
 /*
+ * "STLIST" = "Server Threads (Linked) List"
  * Funcions and data supporting the circular linked list of server threads.
  */
 
-#ifndef LINKED_LIST_H_
-#define LINKED_LIST_H_
+#ifndef STLIST_H_
+#define STLIST_H_
 
 #include <pthread.h>
 #include <semaphore.h>
@@ -12,8 +13,8 @@
 union fs_process_sring_entry;
 
 /* Node for the linked list of registered server threads */
-struct server_list_node {
-	struct server_list_node *next;
+struct stlist_node {
+	struct stlist_node *next;
 	union fs_process_sring_entry *entry;
 	int has_work;
 	pthread_mutex_t mtx;	/* protect has_work */
@@ -24,25 +25,25 @@ struct server_list_node {
 };
 
 /* circular linked list */
-struct server_list {
-	struct server_list_node *first;
-	struct server_list_node *last;
+struct stlist {
+	struct stlist_node *first;
+	struct stlist_node *last;
 	sem_t full;
 	sem_t mtx;
 };
 
 
 /* Inits list semephores, pointers, etc. */
-void server_threads_list_init(struct server_list *list);
+void stlist_init(struct stlist *list);
 
-/* Alloc's, initializes and returns a new server_list_node */
-struct server_list_node *server_list_node_create();
+/* Alloc's, initializes and returns a new stlist_node */
+struct stlist_node *stlist_node_create();
 
 /* Destroy's a server_list_node */
-void server_list_node_destroy(struct server_list_node *n);
+void stlist_node_destroy(struct stlist_node *n);
 
 /* Insert a node into the list. Assumes a NULL list->first is an empty list */
-void server_list_insert(struct server_list *list, struct server_list_node *n);
+void stlist_insert(struct stlist *list, struct stlist_node *n);
 
-#endif /* end of include guard: LINKED_LIST_H_ */
+#endif /* end of include guard: STLIST_H_ */
 
