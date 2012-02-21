@@ -9,14 +9,6 @@
 #include "common.h"
 #include "file_service.h"
 
-void stlist_init(struct stlist *list)
-{
-	list->first = NULL;
-	list->last = NULL;
-	sem_init(&list->full, 0, 0);
-	sem_init(&list->mtx, 0, 1);
-}
-
 /* Alloc's, initializes and returns a new server_list_node */
 struct stlist_node *stlist_node_create()
 {
@@ -34,18 +26,27 @@ void stlist_node_destroy(struct stlist_node *n)
 	free(n);
 }
 
-/* Insert a node into the list. Assumes a NULL list->first is an empty list */
+void stlist_init(struct stlist *list)
+{
+	/* A dummy sentinal node. The list is empty when first==nil */
+	list->nil = stlist_node_create();
+	list->first = list->nil;
+	sem_init(&list->full, 0, 0);
+	sem_init(&list->mtx, 0, 1);
+}
+
+
+/* Insert a node into the list. Assumes list->first==list->nil is an empty list */
 void stlist_insert(struct stlist *list, struct stlist_node *n)
 {
 	sem_wait(&list->mtx);
-	if (!list->first) {
+	if (list->first == list->nil) {
 		list->first = n;
-		list->last = n;
 		n->next = n;
+		list->nil->next = n;
 	} else {
-		n->next = list->first;
-		list->last->next = n;
-		list->first = n;
+		n->next = list->first->next;
+		list->first->next = n;
 	}
 	sem_post(&list->mtx);
 }

@@ -17,7 +17,7 @@ struct stlist_node {
 	struct stlist_node *next;
 	union fs_process_sring_entry *entry;
 	int has_work;
-	pthread_mutex_t mtx;	/* protect has_work */
+	pthread_mutex_t mtx;		// protects has_work
 	pthread_cond_t cond;
 	/* The following two fields are for signaling the pthread to stop */
 	sem_t *sem;
@@ -27,9 +27,10 @@ struct stlist_node {
 /* circular linked list */
 struct stlist {
 	struct stlist_node *first;
-	struct stlist_node *last;
-	sem_t full;
-	sem_t mtx;
+	struct stlist_node *nil;	// used for implementation
+	sem_t full;			// 0 when there is no work to be done
+	sem_t mtx;			// protects the "first" pointer and all
+					// the node->next pointers
 };
 
 
