@@ -93,7 +93,7 @@ static void reg_handle_request(union fs_registrar_sring_entry *entry)
 
 	struct ring_name rname;
 	rname.ring = (void*)reg;
-	rname.shm_name = &shmWorkerName;
+	rname.shm_name = shmWorkerName;
 
 	//spawn new worker thread)
 	pthread_t newThread;
