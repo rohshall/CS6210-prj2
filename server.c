@@ -54,9 +54,8 @@ static void data_lookup_handle(union fs_process_sring_entry *entry)
 
 	//char *rsp;
 	sprintf(entry->rsp.data, "test");
-	
-	//entry->rsp.data = rsp;
 
+	//entry->rsp.data = rsp;
 }
 
 static void *start_worker(void* rname)
@@ -64,13 +63,13 @@ static void *start_worker(void* rname)
         struct ring_name *rData = (struct ring_name*)rname;
         struct fs_process_sring *reg = rData->ring;
 	char* shmWorkerName = rData->shm_name;
-        
+
 	printf("worker thread\n");
-	
+
 	RB_SERVE(fs_process, reg, done, &data_lookup_handle);
 
 	shm_destroy(shmWorkerName, reg, sizeof(*reg));
-	
+
 	return 0;
 }
 
@@ -86,7 +85,6 @@ static void reg_handle_request(union fs_registrar_sring_entry *entry)
 	//create new ring
         char *shmWorkerName = shm_ring_buffer_name(client_pid);
 	struct fs_process_sring *reg = shm_create(shmWorkerName, sizeof(*reg));
-
 	RB_INIT(fs_process, reg, FS_PROCESS_SLOT_COUNT);
 
 	struct ring_name rname;
@@ -96,13 +94,12 @@ static void reg_handle_request(union fs_registrar_sring_entry *entry)
 	//spawn new worker thread)
 	pthread_t newThread;
 	pthread_create(&newThread, NULL, start_worker, &rname);
-	
+
 	printf("thread created. worker shm %s\n", shmWorkerName);
 
 	// push_response
 	entry->rsp.start = -1 * client_pid;
 	entry->rsp.end =  client_pid;
-
 }
 
 /* starts the infinite loop for the client registrar */

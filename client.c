@@ -15,7 +15,7 @@ static struct sector_limits register_with_server()
 	int req = getpid();
 	struct sector_limits rsp;
 
-	RB_MAKE_REQUEST(fs_registrar, reg, &req, &rsp); 
+	RB_MAKE_REQUEST(fs_registrar, reg, &req, &rsp);
 
 	printf("Client Reg: requested %d, recieved (%d, %d)\n", req,
 	       rsp.start, rsp.end);
@@ -30,15 +30,12 @@ void request_data(struct sector_limits sector)
 	struct fs_process_sring *ring = shm_map(shmWorkerName, sizeof(*ring));
 
 	int req = rand() % (sector.end-sector.start) + sector.start;
-
 	struct sector_data rsp;
-
 	RB_MAKE_REQUEST(fs_process, ring, &req, &rsp);
-  
+
 	printf("Client: requested %d, received %s\n", req, rsp.data);
 
 	shm_unmap(ring, sizeof(*ring));
-
 }
 
 int main(int argc, char const *argv[])
@@ -46,7 +43,5 @@ int main(int argc, char const *argv[])
 	struct sector_limits rsp = register_with_server();
 	printf("done reg\n");
 	request_data(rsp);
-
-	//printf("hello client world\n");
 	return 0;
 }
