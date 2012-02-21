@@ -71,6 +71,21 @@ static void daemonize()
 		fail_en("daemon");
 }
 
+/* Loop around, finding the first node that has work to be done */
+static struct stlist_node *find_work(struct stlist_node *p)
+{
+	int has_work = False;
+	sem_wait(&server_list.mtx);
+	do {
+		p = p->next;
+		pthread_mutex_lock(&p->mtx);
+		has_work = p->has_work;
+		pthread_mutex_unlock(&p->mtx);
+	} while (!has_work);
+	sem_post(&server_list.mtx);
+	return p;
+}
+
 /* Main file server thread. Continually waits for work to be put in the circular
  * linked list of worker threads. When there is work to be done, it loops around
  * the list taking each job in round-robin fasion. It performs each job and
@@ -81,19 +96,9 @@ static void file_server()
 	sem_wait(&server_list.mtx);
 	struct stlist_node *p = server_list.first;
 	sem_post(&server_list.mtx);
-	int has_work = False;
 	while (1) {
 		sem_wait(&server_list.full);
-		// Loop around, finding the first node that has work to be done
-		sem_wait(&server_list.mtx);
-		do {
-			p = p->next;
-			pthread_mutex_lock(&p->mtx);
-			has_work = p->has_work;
-			pthread_mutex_unlock(&p->mtx);
-		} while (!has_work);
-		sem_post(&server_list.mtx);
-
+		p = find_work(p);
 		int sector = p->entry->req;
 		sprintf(p->entry->rsp.data, "Sector %d: test", sector);
 		pthread_mutex_lock(&p->mtx);
