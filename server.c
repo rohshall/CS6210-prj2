@@ -86,6 +86,12 @@ static struct stlist_node *find_work(struct stlist_node *p)
 	return p;
 }
 
+/* Fill a buffer with a sector */
+static void fill_sector_data(int sector, char *buf)
+{
+	sprintf(buf, "Sector %d: test", sector);
+}
+
 /* Main file server thread. Continually waits for work to be put in the circular
  * linked list of worker threads. When there is work to be done, it loops around
  * the list taking each job in round-robin fasion. It performs each job and
@@ -100,7 +106,7 @@ static void file_server()
 		sem_wait(&server_list.full);
 		p = find_work(p);
 		int sector = p->entry->req;
-		sprintf(p->entry->rsp.data, "Sector %d: test", sector);
+		fill_sector_data(sector, p->entry->rsp.data);
 		pthread_mutex_lock(&p->mtx);
 		p->has_work = False;
 		pthread_cond_signal(&p->cond);
