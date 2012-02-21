@@ -7,6 +7,13 @@
 #include "common.h"
 #include "stlist.h"
 
+/* ring ptr and shm_name pair for server worker threads*/
+struct ring_name {
+        struct fs_process_sring* ring;
+        char* shm_name;
+	struct stlist_node *ll_node;
+}ring_name_t;
+
 /* global circular linked list */
 struct stlist server_list;
 
@@ -53,7 +60,8 @@ static void daemonize()
 		fail_en("daemon");
 }
 
-static void data_lookup_handle(union fs_process_sring_entry *entry)
+static void data_lookup_handle(union fs_process_sring_entry *entry,
+			       struct stlist_node *ll_node)
 {
         int sector = entry->req;
 
@@ -68,10 +76,11 @@ static void *start_worker(void* rname)
         struct ring_name *rData = (struct ring_name*)rname;
         struct fs_process_sring *reg = rData->ring;
 	char* shmWorkerName = rData->shm_name;
+	struct stlist_node *ll_node = rData->ll_node;
 
 	printf("worker thread\n");
 
-	RB_SERVE(fs_process, reg, done, &data_lookup_handle);
+	RB_SERVE(fs_process, reg, done, &data_lookup_handle, ll_node);
 
 	shm_destroy(shmWorkerName, reg, sizeof(*reg));
 
@@ -81,7 +90,7 @@ static void *start_worker(void* rname)
 /* Handles a single request/response for client registration. Takes in the
  * client pid in entry->req, and pushes the sector limits for the served file in
  * entry->rsp. */
-static void reg_handle_request(union fs_registrar_sring_entry *entry)
+static void reg_handle_request(union fs_registrar_sring_entry *entry, void *nil)
 {
 	// process_request
 	int client_pid = entry->req;
@@ -92,16 +101,16 @@ static void reg_handle_request(union fs_registrar_sring_entry *entry)
 	struct fs_process_sring *reg = shm_create(shmWorkerName, sizeof(*reg));
 	RB_INIT(fs_process, reg, FS_PROCESS_SLOT_COUNT);
 
-	struct ring_name rname;
-	rname.ring = (void*)reg;
-	rname.shm_name = shmWorkerName;
-
 	//create new linked list node
 	struct stlist_node *n = stlist_node_create();
 	n->sem = &reg->full;
 	stlist_insert(&server_list, n);
 
 	//spawn new worker thread)
+	struct ring_name rname;
+	rname.ring = reg;
+	rname.shm_name = shmWorkerName;
+	rname.ll_node = n;
 	pthread_create(&n->tid, NULL, start_worker, &rname);
 
 	printf("thread created. worker shm %s\n", shmWorkerName);
@@ -121,7 +130,7 @@ static void start_registrar()
 	struct fs_registrar_sring *reg = shm_create(shm_registrar_name,
 						    sizeof(*reg));
 	RB_INIT(fs_registrar, reg, FS_REGISTRAR_SLOT_COUNT);
-	RB_SERVE(fs_registrar, reg, done, &reg_handle_request);
+	RB_SERVE(fs_registrar, reg, done, &reg_handle_request, NULL);
 	shm_destroy(shm_registrar_name, reg, sizeof(*reg));
 }
 

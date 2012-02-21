@@ -31,12 +31,6 @@ typedef struct sector_data{
 	char data[SECTOR_SIZE];
 } sector_data_t;
 
-/* ring ptr and shm_name pair for server worker threads*/
-struct ring_name {
-        void* ring;
-        char* shm_name;
-}ring_name_t;
-
 /* number of slots in the ringbuffer */
 #define FS_REGISTRAR_SLOT_COUNT 10
 #define FS_PROCESS_SLOT_COUNT 10
