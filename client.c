@@ -28,9 +28,9 @@ void request_data(struct sector_limits sector)
 {
 
         char shmWorkerName[50];
-	sprintf(shmWorkerName, "%s.%d", shm_registrar_name, getpid());
+	sprintf(shmWorkerName, "%s.%d", shm_ring_buffer_prefix, getpid());
 
-	struct fs_registrar_sring *ring = shm_map(shmWorkerName, sizeof(*ring));
+	struct fs_process_sring *ring = shm_map(shmWorkerName, sizeof(*ring));
 
 	int req = rand() % (sector.end-sector.start) + sector.start;
 

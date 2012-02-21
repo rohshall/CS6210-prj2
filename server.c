@@ -85,7 +85,7 @@ static void reg_handle_request(union fs_registrar_sring_entry *entry)
 
 	//create new ring
 	char shmWorkerName[50];
-	sprintf(shmWorkerName, "%s.%d", shm_registrar_name, client_pid);
+	sprintf(shmWorkerName, "%s.%d", shm_ring_buffer_prefix, client_pid);
 
 	struct fs_process_sring *reg = shm_create(shmWorkerName, sizeof(*reg));
 
