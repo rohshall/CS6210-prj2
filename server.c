@@ -11,8 +11,19 @@
 struct ring_name {
         struct fs_process_sring* ring;
         char* shm_name;
+};
+
+/* ring ptr and shm_name pair for registrar thread */
+struct reg_ring_name {
+        struct fs_registrar_sring* ring;
+        char* shm_name;
+};
+
+/* arg to pass to the worker server threads */
+struct worker_arg {
+	struct ring_name rData;
 	struct stlist_node *ll_node;
-}ring_name_t;
+};
 
 /* global circular linked list */
 struct stlist server_list;
@@ -108,18 +119,35 @@ static void data_lookup_handle(union fs_process_sring_entry *entry,
 	pthread_mutex_unlock(&ll_node->mtx);
 }
 
-static void *start_worker(void* rname)
+/* Cleanup functions for ring buffers. This will be called from a cancellation
+ * point, like sem_wait. Will eventually cause this thread to exit, and it can
+ * be join()ed */
+static void fs_registrar_ring_cleanup(void *arg)
 {
-        struct ring_name *rData = (struct ring_name*)rname;
+        struct reg_ring_name *rname = arg;
+	shm_destroy(rname->shm_name, rname->ring, sizeof(*rname->ring));
+}
+
+static void fs_process_ring_cleanup(void *arg_)
+{
+        struct worker_arg *arg = arg_;
+        struct ring_name *rname = &arg->rData;
+	shm_destroy(rname->shm_name, rname->ring, sizeof(*rname->ring));
+	free(arg);
+}
+
+static void *start_worker(void* arg_)
+{
+        struct worker_arg *arg = arg_;
+	struct ring_name *rData = &arg->rData;
         struct fs_process_sring *reg = rData->ring;
-	char* shmWorkerName = rData->shm_name;
-	struct stlist_node *ll_node = rData->ll_node;
+	struct stlist_node *ll_node = arg->ll_node;
 
 	printf("worker thread\n");
 
+	pthread_cleanup_push(&fs_process_ring_cleanup, arg);
 	RB_SERVE(fs_process, reg, done, &data_lookup_handle, ll_node);
-
-	shm_destroy(shmWorkerName, reg, sizeof(*reg));
+	pthread_cleanup_pop(1); // 1 => execute cleanup unconditionally
 
 	return 0;
 }
@@ -144,11 +172,11 @@ static void reg_handle_request(union fs_registrar_sring_entry *entry, void *nil)
 	stlist_insert(&server_list, n);
 
 	//spawn new worker thread)
-	struct ring_name rname;
-	rname.ring = reg;
-	rname.shm_name = shmWorkerName;
-	rname.ll_node = n;
-	pthread_create(&n->tid, NULL, start_worker, &rname);
+	struct worker_arg *arg = emalloc(sizeof(*arg));
+	arg->rData.ring = reg;
+	arg->rData.shm_name = shmWorkerName;
+	arg->ll_node = n;
+	pthread_create(&n->tid, NULL, start_worker, arg);
 
 	printf("thread created. worker shm %s\n", shmWorkerName);
 
@@ -158,17 +186,25 @@ static void reg_handle_request(union fs_registrar_sring_entry *entry, void *nil)
 }
 
 /* starts the infinite loop for the client registrar */
-static void start_registrar()
+static void *start_registrar(void *arg)
 {
 	/* Create the internal circular linked list for worker threads */
 	stlist_init(&server_list);
 
 	/* Create the registration ring buffer for clients */
-	struct fs_registrar_sring *reg = shm_create(shm_registrar_name,
+	char *shm_name = shm_registrar_name;
+	struct fs_registrar_sring *reg = shm_create(shm_name,
 						    sizeof(*reg));
 	RB_INIT(fs_registrar, reg, FS_REGISTRAR_SLOT_COUNT);
+
+	struct reg_ring_name rname = {
+		.ring = reg,
+		.shm_name = shm_name
+	};
+	pthread_cleanup_push(&fs_registrar_ring_cleanup, &rname);
 	RB_SERVE(fs_registrar, reg, done, &reg_handle_request, NULL);
-	shm_destroy(shm_registrar_name, reg, sizeof(*reg));
+	pthread_cleanup_pop(1); // 1 => execute cleanup unconditionally
+	return NULL;
 }
 
 int main(int argc, char *argv[])
@@ -180,9 +216,21 @@ int main(int argc, char *argv[])
 	char *pidfile_path = argv[1];
 	pidfile_create(pidfile_path);
 
+	/* block all signals */
+	sigset_t sigset, oldset;
+	sigfillset(&sigset);
+	pthread_sigmask(SIG_SETMASK, &sigset, &oldset);
+
+	/* start the registrar */
+	pthread_t reg;
+	pthread_create(&reg, NULL, &start_registrar, NULL);
+
+	/* Unblock "done" signal */
+	pthread_sigmask(SIG_SETMASK, &oldset, NULL);
 	install_sig_handler(SIGTERM, &exit_handler);
 
-	start_registrar();
+	/* Start the file server */
+	file_server();
 
 	pidfile_destroy(pidfile_path);
 	return 0;

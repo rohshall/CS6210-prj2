@@ -127,12 +127,7 @@ struct _tag##_sring {							\
 	struct _tag##_sring_slot *slot;					\
 	int server_index = 0;						\
 	while (!(_stop_cond)) {						\
-		if (sem_wait(&(_ring)->full) == -1) {			\
-			int en = errno;					\
-			if (en == EINTR)				\
-				continue;				\
-		}							\
-									\
+		sem_wait(&(_ring)->full);				\
 		slot = &(_ring)->ring[server_index];			\
 		pthread_mutex_lock(&slot->mutex);			\
 		(_handler)(&slot->entry, (_handler_arg));		\
