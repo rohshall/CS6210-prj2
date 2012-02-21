@@ -53,6 +53,9 @@ DEFINE_RING_TYPES(fs_process, sector_number, sector_data_t,
  * "shm_ring_buffer_prefix.pid", where `pid` is the PID of the client.
  */
 #define shm_ring_buffer_prefix "/fs_ringbuffer"
+/* Macro to create the shared memory file name, given the client's PID */
+#define shm_ring_buffer_name(_client_pid) 				\
+	shm_ring_buffer_prefix "." #_client_pid
 
 /* Functions to handle shared memory */
 /* create and map a new shared memory segement */

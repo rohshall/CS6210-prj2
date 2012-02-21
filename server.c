@@ -84,9 +84,7 @@ static void reg_handle_request(union fs_registrar_sring_entry *entry)
 	printf("server: client request %d\n", client_pid);
 
 	//create new ring
-	char shmWorkerName[50];
-	sprintf(shmWorkerName, "%s.%d", shm_ring_buffer_prefix, client_pid);
-
+        char *shmWorkerName = shm_ring_buffer_name(client_pid);
 	struct fs_process_sring *reg = shm_create(shmWorkerName, sizeof(*reg));
 
 	RB_INIT(fs_process, reg, FS_PROCESS_SLOT_COUNT);
