@@ -96,7 +96,7 @@ static void file_server()
 	sem_wait(&server_list.mtx);
 	struct stlist_node *p = server_list.first;
 	sem_post(&server_list.mtx);
-	while (1) {
+	while (!done) {
 		sem_wait(&server_list.full);
 		p = find_work(p);
 		int sector = p->entry->req;
