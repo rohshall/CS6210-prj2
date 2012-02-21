@@ -7,6 +7,9 @@
 #include "common.h"
 #include "linked_list.h"
 
+/* global circular linked list */
+server_list;
+
 /* set to 1 when we must exit */
 volatile sig_atomic_t done = 0;
 

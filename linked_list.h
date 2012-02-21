@@ -23,13 +23,13 @@ struct server_list_node {
 	pthread_t tid;
 };
 
-/* global circular linked list */
+/* circular linked list */
 struct server_list {
 	struct server_list_node *first;
 	struct server_list_node *last;
 	sem_t full;
 	sem_t mtx;
-} server_list;
+};
 
 
 void server_threads_list_init(struct server_list *list);
