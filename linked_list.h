@@ -32,6 +32,7 @@ struct server_list {
 };
 
 
+/* Inits list semephores, pointers, etc. */
 void server_threads_list_init(struct server_list *list);
 
 /* Alloc's, initializes and returns a new server_list_node */
