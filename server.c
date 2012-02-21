@@ -5,70 +5,10 @@
 
 #include "file_service.h"
 #include "common.h"
+#include "linked_list.h"
 
 /* set to 1 when we must exit */
 volatile sig_atomic_t done = 0;
-
-/* Node for the linked list of registered server threads */
-struct server_list_node {
-	struct server_list_node *next;
-	union fs_process_sring_entry *entry;
-	int has_work;
-	pthread_mutex_t mtx;	/* protect has_work */
-	pthread_cond_t cond;
-	/* The following two fields are for signaling the pthread to stop */
-	sem_t *sem;
-	pthread_t tid;
-};
-
-/* global circular linked list */
-struct server_list {
-	struct server_list_node *first;
-	struct server_list_node *last;
-	sem_t full;
-	sem_t mtx;
-} server_list;
-
-void server_threads_list_init(struct server_list *list)
-{
-	list->first = NULL;
-	list->last = NULL;
-	sem_init(&list->full, 0, 0);
-	sem_init(&list->mtx, 0, 1);
-}
-
-/* Alloc's, initializes and returns a new server_list_node */
-struct server_list_node *server_list_node_create()
-{
-	struct server_list_node *n = ecalloc(sizeof(*n));
-	pthread_mutex_init(&n->mtx, NULL);
-	pthread_cond_init(&n->cond, NULL);
-	return n;
-}
-
-/* Destroy's a server_list_node */
-void server_list_node_destroy(struct server_list_node *n)
-{
-	pthread_mutex_destroy(&n->mtx);
-	pthread_cond_destroy(&n->cond);
-	free(n);
-}
-
-/* Insert a node into the list. Assumes a NULL list->first is an empty list */
-void server_list_insert(struct server_list *list, struct server_list_node *n)
-{
-	sem_wait(&list->mtx);
-	if (!list->first) {
-		list->first = n;
-		list->last = n;
-		n->next = n;
-	} else {
-		n->next = list->first;
-		list->last->next = n;
-		list->first = n;
-	}
-	sem_post(&list->mtx);
-}
 
 /* Sig handler for exit signal */
 static void exit_handler(int signo)
