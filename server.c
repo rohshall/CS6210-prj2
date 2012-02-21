@@ -60,7 +60,7 @@ static void daemonize()
 		fail_en("daemon");
 }
 
-/* Main file server thread. Continually waits for work to be put in the cicular
+/* Main file server thread. Continually waits for work to be put in the circular
  * linked list of worker threads. When there is work to be done, it loops around
  * the list taking each job in round-robin fasion. It performs each job and
  * signals to the worker thread that it is done.
@@ -82,6 +82,13 @@ static void file_server()
 			pthread_mutex_unlock(&p->mtx);
 		} while (!has_work);
 		sem_post(&server_list.mtx);
+
+		int sector = p->entry->req;
+		sprintf(p->entry->rsp.data, "Sector %d: test", sector);
+		pthread_mutex_lock(&p->mtx);
+		p->has_work = False;
+		pthread_cond_signal(&p->cond);
+		pthread_mutex_unlock(&p->mtx);
 	}
 }
 
@@ -92,22 +99,13 @@ static void data_lookup_handle(union fs_process_sring_entry *entry,
 {
 	/* We let the file server thread we have work to do, and wait till it
 	 * finishes */
-	pthread_mutex_lock(&ll_node->mtx);
 	ll_node->entry = entry;
-	ll_node->has_work = 1;
+	pthread_mutex_lock(&ll_node->mtx);
+	ll_node->has_work = True;
 	sem_post(&server_list.full);
 	while (!ll_node->has_work)
 		pthread_cond_wait(&ll_node->cond, &ll_node->mtx);
 	pthread_mutex_unlock(&ll_node->mtx);
-
-	/*
-        int sector = entry->req;
-
-	//char *rsp;
-	sprintf(entry->rsp.data, "test");
-
-	//entry->rsp.data = rsp;
-	*/
 }
 
 static void *start_worker(void* rname)
