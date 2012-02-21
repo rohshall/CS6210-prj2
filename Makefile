@@ -1,14 +1,10 @@
 # This file hopefully should not need to be modified often
 
-CC 	= gcc
-CFLAGS	= -pedantic -Wall -std=gnu99 -pthread -O2 $(DEBUG)
-LDFLAGS = -pthread
-LDLIBS	= -lrt
-DBFLAGS = -g -O0 -DDEBUG
+include Rules.mk
+include sources.mk
 
 BINDIR	= bin
-
-include sources.mk
+TESTDIR	= tests
 
 START_TGT = $(BINDIR)/service
 START_SRC = service.sh
@@ -25,10 +21,6 @@ TGTS = $(START_TGT) $(SERVER_TGT) $(CLIENT_TGT)
 SRCS = $(SERVER_SRCS) $(CLIENT_SRCS)
 OBJS = $(SERVER_OBJS) $(CLIENT_OBJS)
 DEPS = $(SERVER_DEPS) $(CLIENT_DEPS)
-
-# Generic rules:
-LINK	= $(LINK.c) -o $@ $^ $(LDLIBS)
-COMP	= $(COMPILE.c) -MMD -MP $<
 
 all: $(TGTS)
 $(START_TGT): $(START_SRC)
@@ -49,7 +41,10 @@ $(CLIENT_TGT): $(CLIENT_OBJS)
 debug:
 	$(MAKE) clean; $(MAKE) DEBUG="$(DBFLAGS)"
 
+test:
+	$(MAKE); $(MAKE) -C $(TESTDIR); $(TESTDIR)/tests;
+
 clean:
-	rm -rf $(OBJS) $(DEPS) $(TGTS) $(BINDIR)
+	rm -rf $(OBJS) $(DEPS) $(TGTS) $(BINDIR); $(MAKE) -C $(TESTDIR) clean
 
 .PHONY: all clean
