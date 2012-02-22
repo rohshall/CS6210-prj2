@@ -53,3 +53,17 @@ void stlist_insert(struct stlist *list, struct stlist_node *n)
 	}
 	sem_post(&list->mtx);
 }
+
+/* destroys all the nodes in a list. (does not "free" the list pointer) */
+void stlist_destroy(struct stlist *list)
+{
+	struct stlist_node *p, *p_next;
+	p = list->first->next;
+	list->first->next = list->nil;
+	while (p != list->nil) {
+		p_next = p->next;
+		stlist_node_destroy(p);
+		p = p_next;
+	}
+	stlist_node_destroy(list->nil);
+}

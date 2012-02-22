@@ -254,6 +254,8 @@ static void kill_worker_threads(struct stlist *list)
 		pthread_join(p->tid, NULL);
 		p = p->next;
 	} while (p != list->first);
+
+	stlist_destroy(list);
 }
 
 int main(int argc, char *argv[])

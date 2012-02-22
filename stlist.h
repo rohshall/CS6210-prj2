@@ -39,8 +39,11 @@ void stlist_init(struct stlist *list);
 /* Alloc's, initializes and returns a new stlist_node */
 struct stlist_node *stlist_node_create();
 
-/* Destroy's a server_list_node */
+/* Destroys a server_list_node */
 void stlist_node_destroy(struct stlist_node *n);
+
+/* Destroys all the nodes in a list. (does not "free" the list pointer) */
+void stlist_destroy(struct stlist *list);
 
 /* Insert a node into the list. Assumes a NULL list->first is an empty list */
 void stlist_insert(struct stlist *list, struct stlist_node *n);
