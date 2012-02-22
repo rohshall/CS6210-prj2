@@ -197,7 +197,7 @@ static void reg_handle_request(union fs_registrar_sring_entry *entry, void *nil)
 }
 
 /* starts the infinite loop for the client registrar */
-static void *start_registrar(void *arg)
+static void *registrar(void *arg)
 {
 	/* Create the internal circular linked list for worker threads */
 	stlist_init(&server_list);
@@ -218,6 +218,34 @@ static void *start_registrar(void *arg)
 	return NULL;
 }
 
+static pthread_t start_registrar()
+{
+	pthread_t reg;
+	pthread_create(&reg, NULL, &registrar, NULL);
+	return reg;
+}
+
+static void kill_registrar(pthread_t reg)
+{
+	pthread_cancel(reg);
+	pthread_join(reg, NULL);
+}
+
+/* Kills all the worker threads in the linked list and waits for them finish */
+static void kill_worker_threads(struct stlist *list)
+{
+	struct stlist_node *p = list->first;
+	do {
+		pthread_cancel(p->tid);
+		p = p->next;
+	} while (p != list->first);
+
+	do {
+		pthread_join(p->tid, NULL);
+		p = p->next;
+	} while (p != list->first);
+}
+
 int main(int argc, char *argv[])
 {
 	if (argc < 2)
@@ -233,8 +261,7 @@ int main(int argc, char *argv[])
 	pthread_sigmask(SIG_SETMASK, &sigset, &oldset);
 
 	/* start the registrar */
-	pthread_t reg;
-	pthread_create(&reg, NULL, &start_registrar, NULL);
+	pthread_t reg = start_registrar();
 
 	/* Unblock "done" signal */
 	pthread_sigmask(SIG_SETMASK, &oldset, NULL);
@@ -242,6 +269,10 @@ int main(int argc, char *argv[])
 
 	/* Start the file server */
 	file_server();
+
+	/* Kill all the threads */
+	kill_registrar(reg);
+	kill_worker_threads(&server_list);
 
 	pidfile_destroy(pidfile_path);
 	return 0;
