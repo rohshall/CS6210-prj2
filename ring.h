@@ -95,8 +95,11 @@ struct _tag##_sring {							\
 									\
 	struct _tag##_sring_slot *slot = 				\
 		&(_ring)->ring[(_ring)->client_index];			\
+	pthread_mutex_lock(&slot->mutex);				\
 	slot->entry.req = *(_req_ptr);					\
 	slot->done = 0;							\
+	pthread_mutex_unlock(&slot->mutex);				\
+									\
 	(_ring)->client_index = ((_ring)->client_index + 1) %		\
 			(_ring)->slot_count;				\
 									\
@@ -119,21 +122,18 @@ struct _tag##_sring {							\
  * 	`_stop_cond` is an expression which, when it evaluates to True, breaks
  * 		the loop
  * 	`_handler` is a pointer to a function that takes in a pointer to a union
- * 		sring_entry, reads the request in the union, and returns its
- * 		response in the same union */
-#define RB_SERVE(_tag, _ring, _stop_cond, _handler) do {		\
+ * 		sring_entry and arbitrary data in _handler_arg, reads the
+ * 		request in the union, and returns its response in the same union
+ * 	`_handler_arg` is arbitrary data passed through to `_handler()`
+ */
+#define RB_SERVE(_tag, _ring, _stop_cond, _handler, _handler_arg) do {	\
 	struct _tag##_sring_slot *slot;					\
 	int server_index = 0;						\
 	while (!(_stop_cond)) {						\
-		if (sem_wait(&(_ring)->full) == -1) {			\
-			int en = errno;					\
-			if (en == EINTR)				\
-				continue;				\
-		}							\
-									\
+		sem_wait(&(_ring)->full);				\
 		slot = &(_ring)->ring[server_index];			\
 		pthread_mutex_lock(&slot->mutex);			\
-		(_handler)(&slot->entry);				\
+		(_handler)(&slot->entry, (_handler_arg));		\
 		slot->done = 1;						\
 		pthread_cond_signal(&slot->condvar);			\
 		while (slot->done)					\
