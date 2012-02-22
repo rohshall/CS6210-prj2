@@ -33,10 +33,13 @@ void request_data(struct sector_limits sector)
 
 	int req = rand() % (sector.end-sector.start) + sector.start;
 	struct sector_data rsp;
+
+	for (int i = 0; i < 100; ++i) {
+		req++;
 	RB_MAKE_REQUEST(fs_process, ring, &req, &rsp);
 
-	checkpoint("Client: requested %d, received %s", req, rsp.data);
 	printf("Client: requested %d, received %s\n", req, rsp.data);
+	}
 
 	shm_unmap(ring, sizeof(*ring));
 }

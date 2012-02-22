@@ -116,9 +116,9 @@ static void file_server()
 		}
 		checkpoint("%s", "New work!");
 		p = find_work(p);
+		pthread_mutex_lock(&p->mtx);
 		int sector = p->entry->req;
 		fill_sector_data(sector, p->entry->rsp.data);
-		pthread_mutex_lock(&p->mtx);
 		p->has_work = False;
 		pthread_cond_signal(&p->cond);
 		pthread_mutex_unlock(&p->mtx);
@@ -132,13 +132,14 @@ static void data_lookup_handle(union fs_process_sring_entry *entry,
 {
 	/* We let the file server thread we have work to do, and wait till it
 	 * finishes */
-	ll_node->entry = entry;
 	pthread_mutex_lock(&ll_node->mtx);
+	ll_node->entry = entry;
 	ll_node->has_work = True;
 	sem_post(&server_list.full);
 	checkpoint("%s", "Waiting for file server");
-	while (!ll_node->has_work)
+	while (ll_node->has_work) {
 		pthread_cond_wait(&ll_node->cond, &ll_node->mtx);
+	}
 	pthread_mutex_unlock(&ll_node->mtx);
 	checkpoint("%s", "file server done");
 }
@@ -210,9 +211,6 @@ static void reg_handle_request(union fs_registrar_sring_entry *entry, void *nil)
 /* starts the infinite loop for the client registrar */
 static void *registrar(void *arg)
 {
-	/* Create the internal circular linked list for worker threads */
-	stlist_init(&server_list);
-
 	/* Create the registration ring buffer for clients */
 	struct reg_ring_name rname;
 	strncpy(rname.shm_name, shm_registrar_name, sizeof(rname.shm_name));
@@ -271,6 +269,9 @@ int main(int argc, char *argv[])
 	sigset_t sigset, oldset;
 	sigfillset(&sigset);
 	pthread_sigmask(SIG_SETMASK, &sigset, &oldset);
+
+	/* Create the internal circular linked list for worker threads */
+	stlist_init(&server_list);
 
 	/* start the registrar */
 	pthread_t reg = start_registrar();

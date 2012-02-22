@@ -95,8 +95,11 @@ struct _tag##_sring {							\
 									\
 	struct _tag##_sring_slot *slot = 				\
 		&(_ring)->ring[(_ring)->client_index];			\
+	pthread_mutex_lock(&slot->mutex);				\
 	slot->entry.req = *(_req_ptr);					\
 	slot->done = 0;							\
+	pthread_mutex_unlock(&slot->mutex);				\
+									\
 	(_ring)->client_index = ((_ring)->client_index + 1) %		\
 			(_ring)->slot_count;				\
 									\
