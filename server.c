@@ -103,7 +103,14 @@ static void file_server()
 	struct stlist_node *p = server_list.first;
 	sem_post(&server_list.mtx);
 	while (!done) {
-		sem_wait(&server_list.full);
+		if (sem_wait(&server_list.full) == -1) {
+			int en = errno;
+			if (en == EINTR) {
+				continue;
+			} else {
+				fail_en("sem_wait");
+			}
+		}
 		p = find_work(p);
 		int sector = p->entry->req;
 		fill_sector_data(sector, p->entry->rsp.data);
