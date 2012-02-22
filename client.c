@@ -5,6 +5,7 @@
 #include <pthread.h>
 
 #include "file_service.h"
+#include "common.h"
 
 /* Registers this client with the file server. On return, the server will have
  * created a ring buffer for us to use, and we will know the sector limits for
@@ -17,8 +18,8 @@ static struct sector_limits register_with_server()
 
 	RB_MAKE_REQUEST(fs_registrar, reg, &req, &rsp);
 
-	printf("Client Reg: requested %d, recieved (%d, %d)\n", req,
-	       rsp.start, rsp.end);
+	checkpoint("Client Reg: requested %d, recieved (%d, %d)", req,
+		   rsp.start, rsp.end);
 	shm_unmap(reg, sizeof(*reg));
 
 	return rsp;
@@ -33,6 +34,7 @@ void request_data(struct sector_limits sector)
 	struct sector_data rsp;
 	RB_MAKE_REQUEST(fs_process, ring, &req, &rsp);
 
+	checkpoint("Client: requested %d, received %s", req, rsp.data);
 	printf("Client: requested %d, received %s\n", req, rsp.data);
 
 	shm_unmap(ring, sizeof(*ring));
@@ -41,7 +43,7 @@ void request_data(struct sector_limits sector)
 int main(int argc, char const *argv[])
 {
 	struct sector_limits rsp = register_with_server();
-	printf("done reg\n");
+	checkpoint("%s", "Client: done reg");
 	request_data(rsp);
 	return 0;
 }

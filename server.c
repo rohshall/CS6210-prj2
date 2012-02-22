@@ -89,6 +89,7 @@ static struct stlist_node *find_work(struct stlist_node *p)
 /* Fill a buffer with a sector */
 static void fill_sector_data(int sector, char *buf)
 {
+	checkpoint("filling sector %d", sector);
 	sprintf(buf, "Sector %d: test", sector);
 }
 
@@ -99,10 +100,12 @@ static void fill_sector_data(int sector, char *buf)
  */
 static void file_server()
 {
+	checkpoint("%s", "File server starting");
 	sem_wait(&server_list.mtx);
 	struct stlist_node *p = server_list.first;
 	sem_post(&server_list.mtx);
 	while (!done) {
+		checkpoint("%s", "File server waiting");
 		if (sem_wait(&server_list.full) == -1) {
 			int en = errno;
 			if (en == EINTR) {
@@ -111,6 +114,7 @@ static void file_server()
 				fail_en("sem_wait");
 			}
 		}
+		checkpoint("%s", "New work!");
 		p = find_work(p);
 		int sector = p->entry->req;
 		fill_sector_data(sector, p->entry->rsp.data);
@@ -132,9 +136,11 @@ static void data_lookup_handle(union fs_process_sring_entry *entry,
 	pthread_mutex_lock(&ll_node->mtx);
 	ll_node->has_work = True;
 	sem_post(&server_list.full);
+	checkpoint("%s", "Waiting for file server");
 	while (!ll_node->has_work)
 		pthread_cond_wait(&ll_node->cond, &ll_node->mtx);
 	pthread_mutex_unlock(&ll_node->mtx);
+	checkpoint("%s", "file server done");
 }
 
 /* Cleanup functions for ring buffers. This will be called from a cancellation
@@ -161,7 +167,7 @@ static void *start_worker(void* arg_)
         struct fs_process_sring *reg = rData->ring;
 	struct stlist_node *ll_node = arg->ll_node;
 
-	printf("worker thread\n");
+	checkpoint("%s", "Worker thread starting");
 
 	pthread_cleanup_push(&fs_process_ring_cleanup, arg);
 	RB_SERVE(fs_process, reg, done, &data_lookup_handle, ll_node);
@@ -177,7 +183,7 @@ static void reg_handle_request(union fs_registrar_sring_entry *entry, void *nil)
 {
 	// process_request
 	int client_pid = entry->req;
-	printf("server: client request %d\n", client_pid);
+	checkpoint("server: client request %d", client_pid);
 
 	//create new ring
         char *shmWorkerName = shm_ring_buffer_name(client_pid);
@@ -195,7 +201,7 @@ static void reg_handle_request(union fs_registrar_sring_entry *entry, void *nil)
 	arg->ll_node = n;
 	pthread_create(&n->tid, NULL, start_worker, arg);
 
-	printf("thread created. worker shm %s\n", shmWorkerName);
+	checkpoint("Worker thread created. shm %s", arg->rData.shm_name);
 
 	// push_response
 	entry->rsp.start = -1 * client_pid;
