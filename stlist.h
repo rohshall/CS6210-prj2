@@ -19,9 +19,7 @@ struct stlist_node {
 	int has_work;
 	pthread_mutex_t mtx;		// protects has_work
 	pthread_cond_t cond;
-	/* The following two fields are for signaling the pthread to stop */
-	sem_t *sem;
-	pthread_t tid;
+	pthread_t tid;			// use to cancel() the pthread
 };
 
 /* circular linked list */

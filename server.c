@@ -186,7 +186,6 @@ static void reg_handle_request(union fs_registrar_sring_entry *entry, void *nil)
 
 	//create new linked list node
 	struct stlist_node *n = stlist_node_create();
-	n->sem = &reg->full;
 	stlist_insert(&server_list, n);
 
 	//spawn new worker thread)
