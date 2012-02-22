@@ -9,14 +9,14 @@
 
 /* ring ptr and shm_name pair for server worker threads*/
 struct ring_name {
-        struct fs_process_sring* ring;
-        char* shm_name;
+	struct fs_process_sring* ring;
+        char shm_name[50];
 };
 
 /* ring ptr and shm_name pair for registrar thread */
 struct reg_ring_name {
         struct fs_registrar_sring* ring;
-        char* shm_name;
+        char shm_name[50];
 };
 
 /* arg to pass to the worker server threads */
@@ -186,20 +186,19 @@ static void reg_handle_request(union fs_registrar_sring_entry *entry, void *nil)
 	checkpoint("server: client request %d", client_pid);
 
 	//create new ring
-        char *shmWorkerName = shm_ring_buffer_name(client_pid);
-	struct fs_process_sring *reg = shm_create(shmWorkerName, sizeof(*reg));
-	RB_INIT(fs_process, reg, FS_PROCESS_SLOT_COUNT);
+	struct worker_arg *arg = emalloc(sizeof(*arg));
+	sprintf(arg->rData.shm_name, "%s.%d",
+		shm_ring_buffer_prefix, client_pid);
+	arg->rData.ring = shm_create(arg->rData.shm_name,
+				     sizeof(*arg->rData.ring));
+	RB_INIT(fs_process, arg->rData.ring, FS_PROCESS_SLOT_COUNT);
 
 	//create new linked list node
-	struct stlist_node *n = stlist_node_create();
-	stlist_insert(&server_list, n);
+	arg->ll_node = stlist_node_create();
+	stlist_insert(&server_list, arg->ll_node);
 
 	//spawn new worker thread)
-	struct worker_arg *arg = emalloc(sizeof(*arg));
-	arg->rData.ring = reg;
-	arg->rData.shm_name = shmWorkerName;
-	arg->ll_node = n;
-	pthread_create(&n->tid, NULL, start_worker, arg);
+	pthread_create(&arg->ll_node->tid, NULL, start_worker, arg);
 
 	checkpoint("Worker thread created. shm %s", arg->rData.shm_name);
 
@@ -215,17 +214,13 @@ static void *registrar(void *arg)
 	stlist_init(&server_list);
 
 	/* Create the registration ring buffer for clients */
-	char *shm_name = shm_registrar_name;
-	struct fs_registrar_sring *reg = shm_create(shm_name,
-						    sizeof(*reg));
-	RB_INIT(fs_registrar, reg, FS_REGISTRAR_SLOT_COUNT);
+	struct reg_ring_name rname;
+	strncpy(rname.shm_name, shm_registrar_name, sizeof(rname.shm_name));
+	rname.ring = shm_create(rname.shm_name, sizeof(*rname.ring));
+	RB_INIT(fs_registrar, rname.ring, FS_REGISTRAR_SLOT_COUNT);
 
-	struct reg_ring_name rname = {
-		.ring = reg,
-		.shm_name = shm_name
-	};
 	pthread_cleanup_push(&fs_registrar_ring_cleanup, &rname);
-	RB_SERVE(fs_registrar, reg, done, &reg_handle_request, NULL);
+	RB_SERVE(fs_registrar, rname.ring, done, &reg_handle_request, NULL);
 	pthread_cleanup_pop(1); // 1 => execute cleanup unconditionally
 	return NULL;
 }

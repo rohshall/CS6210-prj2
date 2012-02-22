@@ -27,7 +27,8 @@ static struct sector_limits register_with_server()
 
 void request_data(struct sector_limits sector)
 {
-        char *shmWorkerName = shm_ring_buffer_name(getpid());
+        char shmWorkerName[50];
+	sprintf(shmWorkerName, "%s.%d", shm_ring_buffer_prefix, getpid());
 	struct fs_process_sring *ring = shm_map(shmWorkerName, sizeof(*ring));
 
 	int req = rand() % (sector.end-sector.start) + sector.start;
