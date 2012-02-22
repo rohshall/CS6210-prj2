@@ -9,6 +9,7 @@
 #include <pthread.h>
 #include <semaphore.h>
 
+#include "common.h"
 
 union fs_process_sring_entry;
 
@@ -43,6 +44,9 @@ void stlist_node_destroy(struct stlist_node *n);
 
 /* Insert a node into the list. Assumes a NULL list->first is an empty list */
 void stlist_insert(struct stlist *list, struct stlist_node *n);
+
+/* Returns true if list is emtpy */
+bool stlist_is_empty(struct stlist *list);
 
 #endif /* end of include guard: STLIST_H_ */
 

@@ -240,6 +240,9 @@ static void kill_registrar(pthread_t reg)
 /* Kills all the worker threads in the linked list and waits for them finish */
 static void kill_worker_threads(struct stlist *list)
 {
+	if (stlist_is_empty(list))
+		return;
+
 	struct stlist_node *p = list->first;
 	do {
 		pthread_cancel(p->tid);

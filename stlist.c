@@ -35,12 +35,15 @@ void stlist_init(struct stlist *list)
 	sem_init(&list->mtx, 0, 1);
 }
 
+bool stlist_is_empty(struct stlist *list) {
+	return list->first == list->nil;
+}
 
 /* Insert a node into the list. Assumes list->first==list->nil is an empty list */
 void stlist_insert(struct stlist *list, struct stlist_node *n)
 {
 	sem_wait(&list->mtx);
-	if (list->first == list->nil) {
+	if (stlist_is_empty(list)) {
 		list->first = n;
 		n->next = n;
 		list->nil->next = n;
