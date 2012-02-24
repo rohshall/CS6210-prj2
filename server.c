@@ -258,8 +258,10 @@ static void kill_worker_threads(struct stlist *list)
 
 int main(int argc, char *argv[])
 {
-	if (argc < 2)
-		fail("Must provide a pidfile path");
+	char usage[1024];
+	sprintf(usage, "Usage: %s %s %s", argv[0], "<pidfile>", "<file_to_serve>");
+	if (argc < 3)
+		fail(usage);
 	daemonize();
 
 	char *pidfile_path = argv[1];
