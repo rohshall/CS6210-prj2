@@ -22,6 +22,8 @@ struct client_worker_data{
     struct to store data of each response received 
 */
 struct client_worker_result{
+  long startTime;
+  long endTime;
   long time;
   int sectorNum;
   struct sector_data data;
@@ -157,7 +159,9 @@ void *request_worker(void * workerData){
 	        RB_MAKE_REQUEST(fs_process, ring, &req, &rsp);
 		clock_gettime(CLOCK_REALTIME, &tpEnd);
 
-		result[i].data = rsp;		
+		result[i].data = rsp;
+		result[i].startTime = tpStart.tv_nsec;
+		result[i].endTime = tpEnd.tv_nsec;
 		result[i].time = tpEnd.tv_nsec - tpStart.tv_nsec;
 		result[i].sectorNum = req;
 		//printf("Client: requested %d, received %s\n", req, result[i].data.data);
@@ -218,7 +222,8 @@ void request_data(struct sector_limits sector, int numOfThread, int numOfRequest
 	long max = getTimeMax(result, numOfRequest);
 	long min = getTimeMin(result, numOfRequest);
 	double stddev = getTimeStdDev(result, numOfRequest, avg);
-	printf("%ld|%f|%ld|%f\n", max, avg, min, stddev);
+	double reqPerSec = (result[numOfRequest-1].endTime - result[0].startTime)/numOfRequest;
+	printf("%ld|%f|%ld|%f|%f\n", max, avg, min, stddev, reqPerSec);
 
 	//write to file
 	writeResult(result, numOfRequest);
