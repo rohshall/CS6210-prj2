@@ -2,4 +2,4 @@
 *.d
 bin
 tests/tests
-disk1.img
+disk1.img*
