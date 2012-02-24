@@ -178,7 +178,8 @@ void request_data(struct sector_limits sector, int numOfThread, int numOfRequest
 
 	int requestPerThread = (int)numOfRequest/numOfThread;
 
-	struct client_worker_result result[numOfRequest];
+	struct client_worker_result *result = emalloc(numOfRequest *
+						      sizeof(*result));
 	struct client_worker_data clientData[numOfThread];
 
 	//init pthread
@@ -224,6 +225,7 @@ void request_data(struct sector_limits sector, int numOfThread, int numOfRequest
 
 	pthread_attr_destroy(&attr);
 	shm_unmap(ring, sizeof(*ring));
+	free(result);
 }
 
 int main(int argc, char const *argv[])
