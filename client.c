@@ -211,7 +211,7 @@ void request_data(struct sector_limits sector, int numOfThread, int numOfRequest
 
 	//process result
 	for(i = 0; i < numOfRequest; i++) {
-	  printf("result %d: time: %ld data: %s\n", i, result[i].time, result[i].data.data);
+	  printf("result %d: time: %ld data: %*s\n", i, result[i].time, SECTOR_SIZE, result[i].data.data);
 	  
 	}
 	double avg = getTimeAvg(result, numOfRequest);
