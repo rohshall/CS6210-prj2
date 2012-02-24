@@ -103,15 +103,15 @@ static void writeResult(struct client_worker_result *result, int numOfItem){
 	int i;
 	
 	sprintf(fReadName, "./read.%d", getpid());
-	sprintf(fSectorName, "./sector.%d", getpid());
+	sprintf(fSectorName, "./sectors.%d", getpid());
 	
 	fpRead = fopen(fReadName, "w+");
 	fpSector = fopen(fSectorName, "w+b");
 	
 	for(i=0; i<numOfItem; i++){
-	  fwrite(result[i].data.data, sizeof(result[i].data.data[0]), sizeof(result[i].data.data)/sizeof(result[i].data.data[0]), fpSector);
+	  fwrite(result[i].data.data, sizeof(result[i].data.data[0]), sizeof(result[i].data.data)/sizeof(result[i].data.data[0]), fpRead);
 
-	  fprintf(fpRead, "%d\n", result[i].sectorNum);
+	  fprintf(fpSector, "%d\n", result[i].sectorNum);
 	}
 
 	fclose(fpRead);
