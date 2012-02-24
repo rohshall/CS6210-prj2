@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <pthread.h>
+#include <math.h>
 
 #include "file_service.h"
 #include "common.h"
@@ -14,7 +15,110 @@ struct client_worker_data{
   struct fs_process_sring *ring;
   struct sector_limits *limits;
   int numOfRequest;
+  struct client_worker_result *result;
 };
+
+/** 
+    struct to store data of each response received 
+*/
+struct client_worker_result{
+  long time;
+  int sectorNum;
+  struct sector_data data;
+};
+
+/**
+   calculate average time from client_worker_result
+*/
+static double getTimeAvg(struct client_worker_result * result, int numOfItem){
+	int i = 0;
+	long total = 0;
+	
+	for(i = 0; i<numOfItem; i++){
+	  total = total + result[i].time;
+	}
+	
+	return (double)total/numOfItem;
+}
+
+/** 
+   find max time from client_worker_result
+*/
+static long getTimeMax(struct client_worker_result * result, int numOfItem){
+        int i = 0;
+	long max = result[i].time;
+	
+	for(i = 0; i<numOfItem; i++){
+	  if(max < result[i].time) {
+	    max = result[i].time;
+	  }
+	}
+	return max;
+}
+
+/** 
+   find min time from client_worker_result
+*/
+static long getTimeMin(struct client_worker_result * result, int numOfItem){
+        int i = 0;
+	long min = result[i].time;
+	
+	for(i = 0; i<numOfItem; i++){
+	  if(min > result[i].time) {
+	    min = result[i].time;
+	  }
+	}
+	return min;
+}
+
+/** 
+   calculate standard deviation of client_worker_result time data 
+*/
+static double getTimeStdDev(struct client_worker_result *result, int numOfItem, double avg) {
+        int i;
+	double diffSq[numOfItem];
+	double stdDev;
+	double total = 0;
+	for(i = 0; i<numOfItem; i++){
+	  diffSq[i] = pow((result[i].time - avg), 2);
+	}
+	
+	for(i=0; i<numOfItem; i++){
+	  total = total + diffSq[i];
+	}
+
+	stdDev = sqrt(total/numOfItem);
+	
+	return stdDev;
+}
+
+/**
+   write client_worker_result data to 2 files:
+   read.<client_pid> -> sector numbers, line break separated
+   write.<client_pid> -> binary file, data from server
+ */
+static void writeResult(struct client_worker_result *result, int numOfItem){
+        FILE *fpRead, *fpSector;
+	char fReadName[60], fSectorName[60];
+	int i;
+	
+	sprintf(fReadName, "./read.%d", getpid());
+	sprintf(fSectorName, "./sector.%d", getpid());
+	
+	fpRead = fopen(fReadName, "w+");
+	fpSector = fopen(fSectorName, "w+b");
+	
+	for(i=0; i<numOfItem; i++){
+	  fwrite(result[i].data.data, sizeof(result[i].data.data[0]), sizeof(result[i].data.data)/sizeof(result[i].data.data[0]), fpSector);
+
+	  char sector[60];
+	  sprintf(sector, "%d\n", result[i].sectorNum);
+	  fprintf(fpRead, sector);
+	}
+
+	fclose(fpRead);
+	fclose(fpSector);
+}
 
 /* Registers this client with the file server. On return, the server will have
  * created a ring buffer for us to use, and we will know the sector limits for
@@ -43,13 +147,23 @@ void *request_worker(void * workerData){
         struct fs_process_sring *ring = ((struct client_worker_data *)workerData)->ring;
 	struct sector_limits *sector = ((struct client_worker_data *)workerData)->limits;
 	int numOfRequest = ((struct client_worker_data *)workerData)->numOfRequest;
+	struct client_worker_result *result = ((struct client_worker_data *)workerData)->result;
 
 	int i;
 	for(i=0; i<numOfRequest; i++){
-	  	struct sector_data rsp;
+	        struct sector_data rsp;
 		int req = (rand() % (sector->end-sector->start)) + sector->start;
+		struct timespec tpStart, tpEnd;
+		
+		clock_gettime(CLOCK_REALTIME, &tpStart);
 	        RB_MAKE_REQUEST(fs_process, ring, &req, &rsp);
-		printf("Client: requested %d, received %s\n", req, rsp.data);
+		clock_gettime(CLOCK_REALTIME, &tpEnd);
+
+		result[i].data = rsp;		
+		result[i].time = tpEnd.tv_nsec - tpStart.tv_nsec;
+		result[i].sectorNum = req;
+		//printf("Client: requested %d, received %s\n", req, result[i].data.data);
+
 	}
 	return NULL;
 }
@@ -63,24 +177,13 @@ void request_data(struct sector_limits sector, int numOfThread, int numOfRequest
         char shmWorkerName[50];
 	sprintf(shmWorkerName, "%s.%d", shm_ring_buffer_prefix, getpid());
 	struct fs_process_sring *ring = shm_map(shmWorkerName, sizeof(*ring));
-	/**
-	int req = rand() % (sector.end-sector.start) + sector.start;
-	struct sector_data rsp;
-
-	for (int i = 0; i < 100; ++i) {
-		req++;
-	RB_MAKE_REQUEST(fs_process, ring, &req, &rsp);
-
-	printf("Client: requested %d, received %s\n", req, rsp.data);
-	*/
 
 	int requestPerThread = (int)numOfRequest/numOfThread;
 
-	struct client_worker_data clientData;
-	clientData.ring = ring;
-	clientData.limits = &sector;
-	clientData.numOfRequest = requestPerThread;
+	struct client_worker_result result[numOfRequest];
+	struct client_worker_data clientData[numOfThread];
 
+	//init pthread
 	pthread_t workerThread[numOfThread];
 	pthread_attr_t attr;
 	pthread_attr_init(&attr);
@@ -88,16 +191,38 @@ void request_data(struct sector_limits sector, int numOfThread, int numOfRequest
 
 	int i;
 	for(i=0; i<numOfThread; i++){
+
+	        clientData[i].ring = ring;
+		clientData[i].limits = &sector;
+		clientData[i].numOfRequest = requestPerThread;
 	        if((numOfRequest%numOfThread != 0) && (i == numOfThread-1)){
-		  clientData.numOfRequest = requestPerThread + numOfRequest%numOfThread;
+		  clientData[i].numOfRequest = requestPerThread + numOfRequest%numOfThread;
 		}
-	        pthread_create(&workerThread[i], &attr, request_worker, &clientData);
+		clientData[i].result = &result[i*clientData[i].numOfRequest];
+
+
+
+	        pthread_create(&workerThread[i], &attr, request_worker, &clientData[i]);
 
 	}
 
 	for(i=0; i<numOfThread; i++){
 	        pthread_join(workerThread[i], NULL);
 	}
+
+	//process result
+	for(i = 0; i < numOfRequest; i++) {
+	  printf("result %d: time: %ld data: %s\n", i, result[i].time, result[i].data.data);
+	  
+	}
+	double avg = getTimeAvg(result, numOfRequest);
+	long max = getTimeMax(result, numOfRequest);
+	long min = getTimeMin(result, numOfRequest);
+	double stddev = getTimeStdDev(result, numOfRequest, avg);
+	printf("%ld|%f|%ld|%f\n", max, avg, min, stddev);
+
+	//write to file
+	writeResult(result, numOfRequest);
 
 	pthread_attr_destroy(&attr);
 	shm_unmap(ring, sizeof(*ring));

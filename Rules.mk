@@ -3,7 +3,7 @@ CC 	= gcc
 CFLAGS	= -pedantic -Wall -std=gnu99 -pthread -O2 $(DEBUG)
 INCLUDES =
 LDFLAGS = -pthread
-LDLIBS	= -lrt
+LDLIBS	= -lrt -lm
 DBFLAGS = -g -O0 -DDEBUG
 
 # Generic rules:
