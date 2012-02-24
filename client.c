@@ -111,9 +111,7 @@ static void writeResult(struct client_worker_result *result, int numOfItem){
 	for(i=0; i<numOfItem; i++){
 	  fwrite(result[i].data.data, sizeof(result[i].data.data[0]), sizeof(result[i].data.data)/sizeof(result[i].data.data[0]), fpSector);
 
-	  char sector[60];
-	  sprintf(sector, "%d\n", result[i].sectorNum);
-	  fprintf(fpRead, sector);
+	  fprintf(fpRead, "%d\n", result[i].sectorNum);
 	}
 
 	fclose(fpRead);
