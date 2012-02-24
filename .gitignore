@@ -3,3 +3,5 @@
 bin
 tests/tests
 disk1.img*
+read.*
+sector.*
