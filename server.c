@@ -7,6 +7,18 @@
 #include "common.h"
 #include "stlist.h"
 
+/* global circular linked list */
+struct stlist server_list;
+
+/* set to 1 when we must exit */
+volatile sig_atomic_t done = 0;
+
+/* max sector number that can be requested (min is 0) */
+int max_sector_number = 0;
+
+/* file size (in bytes) of the file we are serving */
+size_t file_size;
+
 /* ring ptr and shm_name pair for server worker threads*/
 struct ring_name {
 	struct fs_process_sring* ring;
@@ -24,12 +36,6 @@ struct worker_arg {
 	struct ring_name rData;
 	struct stlist_node *ll_node;
 };
-
-/* global circular linked list */
-struct stlist server_list;
-
-/* set to 1 when we must exit */
-volatile sig_atomic_t done = 0;
 
 /* Sig handler for exit signal */
 static void exit_handler(int signo)
@@ -86,19 +92,49 @@ static struct stlist_node *find_work(struct stlist_node *p)
 	return p;
 }
 
+
 /* Fill a buffer with a sector */
-static void fill_sector_data(int sector, char *buf)
+static void fill_sector_data(int sector, char *buf, FILE *file)
 {
 	checkpoint("filling sector %d", sector);
-	sprintf(buf, "Sector %d: test", sector);
+	size_t start = sector * SECTOR_SIZE;
+	fseek(file, start, SEEK_SET);
+	size_t written = fread(buf, 1, SECTOR_SIZE, file);
+	if (written < SECTOR_SIZE) {
+		if (feof(file)) {
+			memset(buf + written, 0, SECTOR_SIZE - written);
+		} else if (ferror(file)) {
+			fprintf(stderr, "Error in fread()n");
+		}
+	}
+}
+
+/* Returns the size of a file in bytes */
+static size_t fsize(FILE *file)
+{
+	size_t start = ftell(file);
+	fseek(file, 0L, SEEK_END);
+	size_t size = ftell(file);
+	fseek(file, start, SEEK_SET);
+	return size;
+}
+
+/* Opens the file we will be serving, and sets max_sector_number */
+static FILE *init_file_to_serve(char *path)
+{
+	FILE *file = fopen(path, "r");
+	if (!file)
+		fail_en("fopen");
+	file_size = fsize(file);
+	max_sector_number = ((file_size - 1) / SECTOR_SIZE) + 1;
+	return file;
 }
 
 /* Main file server thread. Continually waits for work to be put in the circular
  * linked list of worker threads. When there is work to be done, it loops around
  * the list taking each job in round-robin fasion. It performs each job and
- * signals to the worker thread that it is done.
- */
-static void file_server()
+ * signals to the worker thread that it is done.  */
+static void file_server(FILE *file)
 {
 	checkpoint("%s", "File server starting");
 	sem_wait(&server_list.mtx);
@@ -118,7 +154,7 @@ static void file_server()
 		p = find_work(p);
 		pthread_mutex_lock(&p->mtx);
 		int sector = p->entry->req;
-		fill_sector_data(sector, p->entry->rsp.data);
+		fill_sector_data(sector, p->entry->rsp.data, file);
 		p->has_work = False;
 		pthread_cond_signal(&p->cond);
 		pthread_mutex_unlock(&p->mtx);
@@ -204,8 +240,8 @@ static void reg_handle_request(union fs_registrar_sring_entry *entry, void *nil)
 	checkpoint("Worker thread created. shm %s", arg->rData.shm_name);
 
 	// push_response
-	entry->rsp.start = -1 * client_pid;
-	entry->rsp.end =  client_pid;
+	entry->rsp.start = 0;
+	entry->rsp.end =  max_sector_number;
 }
 
 /* starts the infinite loop for the client registrar */
@@ -267,9 +303,7 @@ int main(int argc, char *argv[])
 	char *pidfile_path = argv[1];
 	pidfile_create(pidfile_path);
 
-	FILE *file_to_serve = fopen(argv[2], "r");
-	if (!file_to_serve)
-		fail_en("fopen");
+	FILE *file_to_serve = init_file_to_serve(argv[2]);
 
 	/* block all signals */
 	sigset_t sigset, oldset;
@@ -287,12 +321,13 @@ int main(int argc, char *argv[])
 	install_sig_handler(SIGTERM, &exit_handler);
 
 	/* Start the file server */
-	file_server();
+	file_server(file_to_serve);
 
 	/* Kill all the threads */
 	kill_registrar(reg);
 	kill_worker_threads(&server_list);
 
+	fclose(file_to_serve);
 	pidfile_destroy(pidfile_path);
 	return 0;
 }
