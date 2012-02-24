@@ -11,6 +11,7 @@ RUNDIR="$( cd "$( dirname "$0" )" && pwd )"
 server_name="server"
 daemon_name="serviced"
 pidfile=$RUNDIR/$daemon_name.pid
+imgfile=$RUNDIR/../disk1.img
 
 usage="$0 [start | stop]"
 
@@ -20,7 +21,7 @@ start() {
 		echo "Daemon is already running"
 		exit
 	else
-		cmd="${RUNDIR}/${server_name} $pidfile"
+		cmd="${RUNDIR}/${server_name} $pidfile $imgfile"
 		echo "Running $cmd"
 		$cmd
 	fi

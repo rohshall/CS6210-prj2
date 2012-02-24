@@ -267,6 +267,10 @@ int main(int argc, char *argv[])
 	char *pidfile_path = argv[1];
 	pidfile_create(pidfile_path);
 
+	FILE *file_to_serve = fopen(argv[2], "r");
+	if (!file_to_serve)
+		fail_en("fopen");
+
 	/* block all signals */
 	sigset_t sigset, oldset;
 	sigfillset(&sigset);
