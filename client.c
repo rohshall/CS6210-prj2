@@ -94,6 +94,20 @@ static double getTimeStdDev(struct client_worker_result *result, int numOfItem, 
 	return stdDev;
 }
 
+long timeDiff (long start, long end)
+{
+  /* Perform the carry for the later subtraction by updating y. */
+  long temp;
+  if (end < start) {
+    temp = 1000000000+end-start;
+  }
+  else{
+    temp = end-start;
+  }
+
+  return temp;
+}
+
 /**
    write client_worker_result data to 2 files:
    read.<client_pid> -> sector numbers, line break separated
@@ -162,7 +176,8 @@ void *request_worker(void * workerData){
 		result[i].data = rsp;
 		result[i].startTime = tpStart.tv_nsec;
 		result[i].endTime = tpEnd.tv_nsec;
-		result[i].time = tpEnd.tv_nsec - tpStart.tv_nsec;
+		result[i].time = timeDiff(tpStart.tv_nsec, tpEnd.tv_nsec);
+		//result[i].time = tpEnd.tv_nsec - tpStart.tv_nsec;
 		result[i].sectorNum = req;
 		//printf("Client: requested %d, received %s\n", req, result[i].data.data);
 
@@ -215,14 +230,18 @@ void request_data(struct sector_limits sector, int numOfThread, int numOfRequest
 
 	//process result
 	for(i = 0; i < numOfRequest; i++) {
-	  printf("result %d: time: %ld data: %*s\n", i, result[i].time, SECTOR_SIZE, result[i].data.data);
-	  
+	  //printf("result %d: time: %ld data: %*s\n", i, result[i].time, SECTOR_SIZE, result[i].data.data);
+	  if(result[i].time < 0) {
+	    printf("return negative: time %ld start %ld end %ld\n", result[i].time, result[i].startTime, result[i].endTime);
+	  }
+
 	}
 	double avg = getTimeAvg(result, numOfRequest);
 	long max = getTimeMax(result, numOfRequest);
 	long min = getTimeMin(result, numOfRequest);
 	double stddev = getTimeStdDev(result, numOfRequest, avg);
-	double reqPerSec = (result[numOfRequest-1].endTime - result[0].startTime)/numOfRequest;
+	//double reqPerSec = (result[numOfRequest-1].endTime - result[0].startTime)/numOfRequest;
+	double reqPerSec = (timeDiff(result[0].startTime, result[numOfRequest-1].endTime))/numOfRequest;
 	printf("%ld|%f|%ld|%f|%f\n", max, avg, min, stddev, reqPerSec);
 
 	//write to file
