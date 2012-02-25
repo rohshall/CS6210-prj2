@@ -157,30 +157,27 @@ static struct sector_limits register_with_server()
     Generate random number within the limits. Put in a read request, then
     prints out the received data.
  **/
-void *request_worker(void * workerData){
-        struct fs_process_sring *ring = ((struct client_worker_data *)workerData)->ring;
-	struct sector_limits *sector = ((struct client_worker_data *)workerData)->limits;
-	int numOfRequest = ((struct client_worker_data *)workerData)->numOfRequest;
-	struct client_worker_result *result = ((struct client_worker_data *)workerData)->result;
+void *request_worker(void *arg){
+	struct client_worker_data *workerData = arg;
+	struct fs_process_sring *ring = workerData->ring;
+	struct sector_limits *sector = workerData->limits;
+	int numOfRequest = workerData->numOfRequest;
+	struct client_worker_result *result = workerData->result;
 
 	int i;
+	struct timespec tpStart, tpEnd;
 	for(i=0; i<numOfRequest; i++){
-	        struct sector_data rsp;
-		int req = (rand() % (sector->end-sector->start)) + sector->start;
-		struct timespec tpStart, tpEnd;
-		
+		result[i].sectorNum = (rand() % (sector->end-sector->start)) + sector->start;
+
 		clock_gettime(CLOCK_REALTIME, &tpStart);
-	        RB_MAKE_REQUEST(fs_process, ring, &req, &rsp);
+		RB_MAKE_REQUEST(fs_process, ring, &result[i].sectorNum,
+				&result[i].data);
 		clock_gettime(CLOCK_REALTIME, &tpEnd);
 
-		result[i].data = rsp;
 		result[i].startTime = tpStart.tv_nsec;
 		result[i].endTime = tpEnd.tv_nsec;
 		result[i].time = timeDiff(tpStart.tv_nsec, tpEnd.tv_nsec);
-		//result[i].time = tpEnd.tv_nsec - tpStart.tv_nsec;
-		result[i].sectorNum = req;
 		//printf("Client: requested %d, received %s\n", req, result[i].data.data);
-
 	}
 	return NULL;
 }
