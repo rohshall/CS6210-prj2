@@ -213,7 +213,7 @@ void request_data(struct sector_limits sector, int numOfThread, int numOfRequest
 	        if((numOfRequest%numOfThread != 0) && (i == numOfThread-1)){
 		  clientData[i].numOfRequest = requestPerThread + numOfRequest%numOfThread;
 		}
-		clientData[i].result = &result[i*clientData[i].numOfRequest];
+		clientData[i].result = &result[i*requestPerThread];
 
 
 
