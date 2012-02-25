@@ -223,8 +223,8 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="1.1055185"
-     inkscape:cx="216.49625"
-     inkscape:cy="594.26545"
+     inkscape:cx="250.86927"
+     inkscape:cy="279.48102"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
@@ -265,7 +265,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title />
+        <dc:title></dc:title>
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -613,7 +613,10 @@
        inkscape:connector-curvature="0"
        sodipodi:nodetypes="cczcccc" />
     <g
-       id="g4824">
+       id="g4824"
+       inkscape:export-filename="/home/sam/src/CS_6210/prj2/report/registration.png"
+       inkscape:export-xdpi="200"
+       inkscape:export-ydpi="200">
       <path
          style="fill:none;stroke:#000000;stroke-width:0.40000001;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
          d="m 153.52066,788.71653 c -0.62299,4.98395 6.53665,4.6382 5.7042,9.34275 -0.83245,4.70456 -6.1738,2.16413 -5.96707,7.46818 0.20672,5.30406 6.57727,1.0926 6.52676,6.5326 -0.0505,5.43999 -7.23185,3.94597 -6.3119,7.57295 0.91995,3.62697 6.01148,3.43384 5.47236,5.85988"
@@ -1090,7 +1093,10 @@
          x="446.64182"
          y="-130.28067" /></text>
     <g
-       id="g4702">
+       id="g4702"
+       inkscape:export-filename="/home/sam/src/CS_6210/prj2/report/file_service.png"
+       inkscape:export-xdpi="200"
+       inkscape:export-ydpi="200">
       <g
          transform="translate(0,-39.576873)"
          id="g5950">
