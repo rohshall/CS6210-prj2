@@ -7,6 +7,9 @@
 #include "common.h"
 #include "stlist.h"
 
+/* number of seconds to wait for incoming requests before timing out */
+#define TIMEOUT 300
+
 /* global circular linked list */
 struct stlist server_list;
 
@@ -142,6 +145,7 @@ static void file_server(FILE *file)
 	sem_post(&server_list.mtx);
 	while (!done) {
 		checkpoint("%s", "File server waiting");
+		alarm(TIMEOUT);
 		if (sem_wait(&server_list.full) == -1) {
 			int en = errno;
 			if (en == EINTR) {
@@ -316,9 +320,10 @@ int main(int argc, char *argv[])
 	/* start the registrar */
 	pthread_t reg = start_registrar();
 
-	/* Unblock "done" signal */
+	/* Unblock "done" signal(s) */
 	pthread_sigmask(SIG_SETMASK, &oldset, NULL);
 	install_sig_handler(SIGTERM, &exit_handler);
+	install_sig_handler(SIGALRM, &exit_handler);
 
 	/* Start the file server */
 	file_server(file_to_serve);
