@@ -163,10 +163,8 @@ static double getTimeStdDev(struct client_worker_result *result, int numOfItem, 
 
 static double getReqPerSec(struct client_worker_result *result, int numOfItem){
   struct timespec diff;
-
   timespec_subtract(&diff, &result[0].startTime, &result[numOfItem-1].endTime);
-  
-  return (double)numOfItem/(convertToNanoSec(&diff)/1000000000);
+  return numOfItem/(convertToNanoSec(&diff)/1000000000.);
 }
 
 
