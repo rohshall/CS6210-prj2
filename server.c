@@ -1,7 +1,13 @@
+/* Necessary for O_DIRECT flag to open() */
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <unistd.h>
 #include <signal.h>
 #include <errno.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <fcntl.h>
 
 #include "file_service.h"
 #include "common.h"
@@ -123,9 +129,12 @@ static size_t fsize(FILE *file)
 }
 
 /* Opens the file we will be serving, and sets max_sector_number */
-static FILE *init_file_to_serve(char *path)
+static FILE *init_file_to_serve(const char *path)
 {
-	FILE *file = fopen(path, "r");
+	int fd = open(path, O_RDONLY | O_DIRECT);
+	if (!fd)
+		fail_en("open");
+	FILE *file = fdopen(fd, "r");
 	if (!file)
 		fail_en("fopen");
 	file_size = fsize(file);
